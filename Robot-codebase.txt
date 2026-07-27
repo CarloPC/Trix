@@ -1,0 +1,1595 @@
+﻿
+
+/// FILE: face_landmark_68_model-weights_manifest.json ///
+[{"weights":[{"name":"dense0/conv0/filters","shape":[3,3,3,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.004853619781194949,"min":-0.5872879935245888}},{"name":"dense0/conv0/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.004396426443960153,"min":-0.7298067896973853}},{"name":"dense0/conv1/depthwise_filter","shape":[3,3,32,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00635151559231328,"min":-0.5589333721235686}},{"name":"dense0/conv1/pointwise_filter","shape":[1,1,32,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.009354315552057004,"min":-1.2628325995276957}},{"name":"dense0/conv1/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0029380727048013726,"min":-0.5846764682554731}},{"name":"dense0/conv2/depthwise_filter","shape":[3,3,32,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0049374802439820535,"min":-0.6171850304977566}},{"name":"dense0/conv2/pointwise_filter","shape":[1,1,32,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.009941946758943446,"min":-1.3421628124573652}},{"name":"dense0/conv2/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0030300481062309416,"min":-0.5272283704841838}},{"name":"dense0/conv3/depthwise_filter","shape":[3,3,32,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.005672684837790097,"min":-0.7431217137505026}},{"name":"dense0/conv3/pointwise_filter","shape":[1,1,32,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.010712201455060173,"min":-1.5639814124387852}},{"name":"dense0/conv3/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0030966934035806097,"min":-0.3839899820439956}},{"name":"dense1/conv0/depthwise_filter","shape":[3,3,32,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0039155554537679636,"min":-0.48161332081345953}},{"name":"dense1/conv0/pointwise_filter","shape":[1,1,32,64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01023082966898002,"min":-1.094698774580862}},{"name":"dense1/conv0/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0027264176630506327,"min":-0.3871513081531898}},{"name":"dense1/conv1/depthwise_filter","shape":[3,3,64,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.004583378632863362,"min":-0.5454220573107401}},{"name":"dense1/conv1/pointwise_filter","shape":[1,1,64,64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00915846403907327,"min":-1.117332612766939}},{"name":"dense1/conv1/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.003091680419211294,"min":-0.5966943209077797}},{"name":"dense1/conv2/depthwise_filter","shape":[3,3,64,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.005407439727409214,"min":-0.708374604290607}},{"name":"dense1/conv2/pointwise_filter","shape":[1,1,64,64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00946493943532308,"min":-1.2399070660273235}},{"name":"dense1/conv2/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.004409168514550901,"min":-0.9788354102303}},{"name":"dense1/conv3/depthwise_filter","shape":[3,3,64,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.004478132958505668,"min":-0.6493292789833219}},{"name":"dense1/conv3/pointwise_filter","shape":[1,1,64,64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.011063695888893277,"min":-1.2501976354449402}},{"name":"dense1/conv3/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.003909627596537272,"min":-0.6646366914113363}},{"name":"dense2/conv0/depthwise_filter","shape":[3,3,64,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.003213915404151468,"min":-0.3374611174359041}},{"name":"dense2/conv0/pointwise_filter","shape":[1,1,64,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.010917326048308728,"min":-1.4520043644250609}},{"name":"dense2/conv0/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.002800439152063108,"min":-0.38085972468058266}},{"name":"dense2/conv1/depthwise_filter","shape":[3,3,128,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0050568851770139206,"min":-0.6927932692509071}},{"name":"dense2/conv1/pointwise_filter","shape":[1,1,128,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01074961213504567,"min":-1.3222022926106174}},{"name":"dense2/conv1/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0030654204242369708,"min":-0.5487102559384177}},{"name":"dense2/conv2/depthwise_filter","shape":[3,3,128,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00591809165244009,"min":-0.917304206128214}},{"name":"dense2/conv2/pointwise_filter","shape":[1,1,128,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01092823346455892,"min":-1.366029183069865}},{"name":"dense2/conv2/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.002681120470458386,"min":-0.36463238398234055}},{"name":"dense2/conv3/depthwise_filter","shape":[3,3,128,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0048311497650894465,"min":-0.5797379718107336}},{"name":"dense2/conv3/pointwise_filter","shape":[1,1,128,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.011227761062921263,"min":-1.4483811771168429}},{"name":"dense2/conv3/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0034643323982463162,"min":-0.3360402426298927}},{"name":"dense3/conv0/depthwise_filter","shape":[3,3,128,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.003394978887894574,"min":-0.49227193874471326}},{"name":"dense3/conv0/pointwise_filter","shape":[1,1,128,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.010051267287310432,"min":-1.2765109454884247}},{"name":"dense3/conv0/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.003142924752889895,"min":-0.4588670139219247}},{"name":"dense3/conv1/depthwise_filter","shape":[3,3,256,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00448304671867221,"min":-0.5872791201460595}},{"name":"dense3/conv1/pointwise_filter","shape":[1,1,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.016063522357566685,"min":-2.3613377865623026}},{"name":"dense3/conv1/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00287135781026354,"min":-0.47664539650374765}},{"name":"dense3/conv2/depthwise_filter","shape":[3,3,256,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.006002906724518421,"min":-0.7923836876364315}},{"name":"dense3/conv2/pointwise_filter","shape":[1,1,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.017087187019048954,"min":-1.6061955797906016}},{"name":"dense3/conv2/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.003124481205846749,"min":-0.46242321846531886}},{"name":"dense3/conv3/depthwise_filter","shape":[3,3,256,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.006576311588287353,"min":-1.0193282961845398}},{"name":"dense3/conv3/pointwise_filter","shape":[1,1,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.015590153955945782,"min":-1.99553970636106}},{"name":"dense3/conv3/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.004453541601405424,"min":-0.6546706154065973}},{"name":"fc/weights","shape":[256,136],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.010417488509533453,"min":-1.500118345372817}},{"name":"fc/bias","shape":[136],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0025084222648658005,"min":0.07683877646923065}}],"paths":["face_landmark_68_model-shard1"]}]
+
+
+/// FILE: face_recognition_model-weights_manifest.json ///
+[{"weights":[{"name":"conv32_down/conv/filters","shape":[7,7,3,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0005260649557207145,"min":-0.07101876902229645}},{"name":"conv32_down/conv/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":8.471445956577858e-7,"min":-0.00014740315964445472}},{"name":"conv32_down/scale/weights","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.06814416062598135,"min":5.788674831390381}},{"name":"conv32_down/scale/biases","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.008471635042452345,"min":-0.931879854669758}},{"name":"conv32_1/conv1/conv/filters","shape":[3,3,32,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0007328585666768691,"min":-0.0974701893680236}},{"name":"conv32_1/conv1/conv/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":1.5952091238361e-8,"min":-0.000001978059313556764}},{"name":"conv32_1/conv1/scale/weights","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.02146628510718252,"min":3.1103382110595703}},{"name":"conv32_1/conv1/scale/biases","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0194976619645661,"min":-2.3787147596770644}},{"name":"conv32_1/conv2/conv/filters","shape":[3,3,32,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0004114975824075587,"min":-0.05267169054816751}},{"name":"conv32_1/conv2/conv/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":4.600177166424806e-9,"min":-5.70421968636676e-7}},{"name":"conv32_1/conv2/scale/weights","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.03400764932819441,"min":2.1677730083465576}},{"name":"conv32_1/conv2/scale/biases","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.010974494616190593,"min":-1.240117891629537}},{"name":"conv32_2/conv1/conv/filters","shape":[3,3,32,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0005358753251094444,"min":-0.0760942961655411}},{"name":"conv32_2/conv1/conv/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":5.9886454383719385e-9,"min":-7.366033889197485e-7}},{"name":"conv32_2/conv1/scale/weights","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.014633869657329485,"min":2.769575357437134}},{"name":"conv32_2/conv1/scale/biases","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.022131107367721257,"min":-2.5229462399202234}},{"name":"conv32_2/conv2/conv/filters","shape":[3,3,32,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00030145110452876373,"min":-0.03949009469326805}},{"name":"conv32_2/conv2/conv/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":6.8779549306497095e-9,"min":-9.010120959151119e-7}},{"name":"conv32_2/conv2/scale/weights","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.03929369870354148,"min":4.8010945320129395}},{"name":"conv32_2/conv2/scale/biases","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.010553357180427103,"min":-1.2452961472903983}},{"name":"conv32_3/conv1/conv/filters","shape":[3,3,32,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0003133527642371608,"min":-0.040735859350830905}},{"name":"conv32_3/conv1/conv/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":4.1064200719547974e-9,"min":-3.0387508532465503e-7}},{"name":"conv32_3/conv1/scale/weights","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.009252088210161994,"min":2.333256721496582}},{"name":"conv32_3/conv1/scale/biases","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.007104101251153385,"min":-0.34810096130651585}},{"name":"conv32_3/conv2/conv/filters","shape":[3,3,32,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00029995629892629733,"min":-0.031195455088334923}},{"name":"conv32_3/conv2/conv/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":5.62726418316814e-9,"min":-6.921534945296811e-7}},{"name":"conv32_3/conv2/scale/weights","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0467432975769043,"min":5.362040996551514}},{"name":"conv32_3/conv2/scale/biases","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.010314425300149357,"min":-1.268674311918371}},{"name":"conv64_down/conv1/conv/filters","shape":[3,3,32,64],"dtype":"float32"},{"name":"conv64_down/conv1/conv/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":8.373908033218849e-10,"min":-1.172347124650639e-7}},{"name":"conv64_down/conv1/scale/weights","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0066875364266189875,"min":2.5088400840759277}},{"name":"conv64_down/conv1/scale/biases","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01691421620986041,"min":-2.0973628100226906}},{"name":"conv64_down/conv2/conv/filters","shape":[3,3,64,64],"dtype":"float32"},{"name":"conv64_down/conv2/conv/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":2.3252014483766877e-9,"min":-2.673981665633191e-7}},{"name":"conv64_down/conv2/scale/weights","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.032557439804077146,"min":2.6351239681243896}},{"name":"conv64_down/conv2/scale/biases","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.015429047509735706,"min":-1.5429047509735707}},{"name":"conv64_1/conv1/conv/filters","shape":[3,3,64,64],"dtype":"float32"},{"name":"conv64_1/conv1/conv/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":1.1319172039756998e-9,"min":-1.4941307092479238e-7}},{"name":"conv64_1/conv1/scale/weights","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.007802607031429515,"min":3.401733160018921}},{"name":"conv64_1/conv1/scale/biases","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01425027146058924,"min":-0.6982633015688727}},{"name":"conv64_1/conv2/conv/filters","shape":[3,3,64,64],"dtype":"float32"},{"name":"conv64_1/conv2/conv/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":2.5635019893325435e-9,"min":-2.717312108692496e-7}},{"name":"conv64_1/conv2/scale/weights","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.04062801716374416,"min":3.542381525039673}},{"name":"conv64_1/conv2/scale/biases","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.007973166306813557,"min":-0.7415044665336609}},{"name":"conv64_2/conv1/conv/filters","shape":[3,3,64,64],"dtype":"float32"},{"name":"conv64_2/conv1/conv/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":1.2535732661062331e-9,"min":-1.8302169685151004e-7}},{"name":"conv64_2/conv1/scale/weights","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.005631206549850164,"min":2.9051668643951416}},{"name":"conv64_2/conv1/scale/biases","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01859012585060269,"min":-2.3795361088771445}},{"name":"conv64_2/conv2/conv/filters","shape":[3,3,64,64],"dtype":"float32"},{"name":"conv64_2/conv2/conv/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":2.486726369919351e-9,"min":-3.5311514452854786e-7}},{"name":"conv64_2/conv2/scale/weights","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.03740917467603497,"min":5.571568965911865}},{"name":"conv64_2/conv2/scale/biases","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.006418555858088475,"min":-0.5263215803632549}},{"name":"conv64_3/conv1/conv/filters","shape":[3,3,64,64],"dtype":"float32"},{"name":"conv64_3/conv1/conv/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":7.432564576875473e-10,"min":-8.47312361763804e-8}},{"name":"conv64_3/conv1/scale/weights","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.006400122362024644,"min":2.268010377883911}},{"name":"conv64_3/conv1/scale/biases","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.010945847922680425,"min":-1.3353934465670119}},{"name":"conv64_3/conv2/conv/filters","shape":[3,3,64,64],"dtype":"float32"},{"name":"conv64_3/conv2/conv/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":2.278228722014533e-9,"min":-3.212302498040492e-7}},{"name":"conv64_3/conv2/scale/weights","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.029840927498013366,"min":7.038398265838623}},{"name":"conv64_3/conv2/scale/biases","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.010651412197187834,"min":-1.161003929493474}},{"name":"conv128_down/conv1/conv/filters","shape":[3,3,64,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00020040544662989823,"min":-0.022245004575918704}},{"name":"conv128_down/conv1/conv/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":4.3550543563576545e-10,"min":-4.311503812794078e-8}},{"name":"conv128_down/conv1/scale/weights","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.007448580685783835,"min":2.830846071243286}},{"name":"conv128_down/conv1/scale/biases","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01211262824488621,"min":-1.6957679542840696}},{"name":"conv128_down/conv2/conv/filters","shape":[3,3,128,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00022380277514457702,"min":-0.02484210804104805}},{"name":"conv128_down/conv2/conv/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":9.031058637304466e-10,"min":-1.1650065642122761e-7}},{"name":"conv128_down/conv2/scale/weights","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.027663578706629135,"min":3.1111555099487305}},{"name":"conv128_down/conv2/scale/biases","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.008878476946961646,"min":-1.029903325847551}},{"name":"conv128_1/conv1/conv/filters","shape":[3,3,128,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00022380667574265425,"min":-0.032899581334170175}},{"name":"conv128_1/conv1/conv/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":4.4147297756478345e-10,"min":-5.253528433020923e-8}},{"name":"conv128_1/conv1/scale/weights","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.013599334978589825,"min":3.634530782699585}},{"name":"conv128_1/conv1/scale/biases","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.014059314073300829,"min":-1.4059314073300828}},{"name":"conv128_1/conv2/conv/filters","shape":[3,3,128,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00021715293474057143,"min":-0.02909849325523657}},{"name":"conv128_1/conv2/conv/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":9.887046963276768e-10,"min":-1.1370104007768284e-7}},{"name":"conv128_1/conv2/scale/weights","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.029993299409454943,"min":3.630716562271118}},{"name":"conv128_1/conv2/scale/biases","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00782704236460667,"min":-0.7200878975438136}},{"name":"conv128_2/conv1/conv/filters","shape":[3,3,128,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00017718105923895743,"min":-0.022324813464108636}},{"name":"conv128_2/conv1/conv/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":3.567012027797675e-10,"min":-5.243507680862582e-8}},{"name":"conv128_2/conv1/scale/weights","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.007940645778880399,"min":4.927767753601074}},{"name":"conv128_2/conv1/scale/biases","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.015933452867994122,"min":-1.5614783810634238}},{"name":"conv128_2/conv2/conv/filters","shape":[3,3,128,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0001451439717236687,"min":-0.01712698866339291}},{"name":"conv128_2/conv2/conv/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":1.0383988570966347e-9,"min":-1.2356946399449953e-7}},{"name":"conv128_2/conv2/scale/weights","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.02892604528688917,"min":4.750600814819336}},{"name":"conv128_2/conv2/scale/biases","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00797275748907351,"min":-0.7414664464838364}},{"name":"conv256_down/conv1/conv/filters","shape":[3,3,128,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0002698827827093648,"min":-0.03994265184098599}},{"name":"conv256_down/conv1/conv/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":5.036909834755123e-10,"min":-6.396875490139006e-8}},{"name":"conv256_down/conv1/scale/weights","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.014870181738161573,"min":4.269900798797607}},{"name":"conv256_down/conv1/scale/biases","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.022031106200872685,"min":-3.1063859743230484}},{"name":"conv256_down/conv2/conv/filters","shape":[3,3,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00046430734150549946,"min":-0.03946612402796745}},{"name":"conv256_down/conv2/conv/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":6.693064577513153e-10,"min":-7.630093618364995e-8}},{"name":"conv256_down/conv2/scale/weights","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.03475512242784687,"min":3.608360528945923}},{"name":"conv256_down/conv2/scale/biases","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01290142021927179,"min":-1.1482263995151893}},{"name":"conv256_1/conv1/conv/filters","shape":[3,3,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00037147209924810076,"min":-0.04234781931428348}},{"name":"conv256_1/conv1/conv/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":3.2105515457510146e-10,"min":-3.467395669411096e-8}},{"name":"conv256_1/conv1/scale/weights","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.043242172166412955,"min":5.28542947769165}},{"name":"conv256_1/conv1/scale/biases","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01643658619300992,"min":-1.3149268954407936}},{"name":"conv256_1/conv2/conv/filters","shape":[3,3,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0003289232651392619,"min":-0.041773254672686264}},{"name":"conv256_1/conv2/conv/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":9.13591691187321e-10,"min":-1.2333487831028833e-7}},{"name":"conv256_1/conv2/scale/weights","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0573908618852204,"min":4.360693454742432}},{"name":"conv256_1/conv2/scale/biases","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0164216583850337,"min":-1.3958409627278647}},{"name":"conv256_2/conv1/conv/filters","shape":[3,3,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00010476927912118389,"min":-0.015610622589056398}},{"name":"conv256_2/conv1/conv/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":2.418552539068639e-10,"min":-2.539480166022071e-8}},{"name":"conv256_2/conv1/scale/weights","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.06024209564807368,"min":6.598613739013672}},{"name":"conv256_2/conv1/scale/biases","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.01578534350675695,"min":-1.1049740454729864}},{"name":"conv256_2/conv2/conv/filters","shape":[3,3,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.00005543030908002573,"min":-0.007427661416723448}},{"name":"conv256_2/conv2/conv/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":1.0822061852320308e-9,"min":-1.515088659324843e-7}},{"name":"conv256_2/conv2/scale/weights","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.04302893993901272,"min":2.2855491638183594}},{"name":"conv256_2/conv2/scale/biases","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.006792667566561232,"min":-0.8083274404207865}},{"name":"conv256_down_out/conv1/conv/filters","shape":[3,3,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.000568966465253456,"min":-0.05632768006009214}},{"name":"conv256_down_out/conv1/conv/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":4.5347887884881677e-10,"min":-6.530095855422961e-8}},{"name":"conv256_down_out/conv1/scale/weights","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.017565592597512638,"min":4.594101905822754}},{"name":"conv256_down_out/conv1/scale/biases","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.04850864223405427,"min":-6.306123490427055}},{"name":"conv256_down_out/conv2/conv/filters","shape":[3,3,256,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0003739110687199761,"min":-0.06954745878191555}},{"name":"conv256_down_out/conv2/conv/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":1.2668428328152895e-9,"min":-2.2549802424112154e-7}},{"name":"conv256_down_out/conv2/scale/weights","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.04351314469879749,"min":4.31956672668457}},{"name":"conv256_down_out/conv2/scale/biases","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.021499746921015722,"min":-1.2039858275768804}},{"name":"fc","shape":[256,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.000357687911566566,"min":-0.04578405268052045}}],"paths":["face_recognition_model-shard1","face_recognition_model-shard2"]}]
+
+
+/// FILE: tiny_face_detector_model-weights_manifest.json ///
+[{"weights":[{"name":"conv0/filters","shape":[3,3,3,16],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.009007044399485869,"min":-1.2069439495311063}},{"name":"conv0/bias","shape":[16],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.005263455241334205,"min":-0.9211046672334858}},{"name":"conv1/depthwise_filter","shape":[3,3,16,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.004001977630690033,"min":-0.5042491814669441}},{"name":"conv1/pointwise_filter","shape":[1,1,16,32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.013836609615999109,"min":-1.411334180831909}},{"name":"conv1/bias","shape":[32],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0015159862590771096,"min":-0.30926119685173037}},{"name":"conv2/depthwise_filter","shape":[3,3,32,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.002666276225856706,"min":-0.317286870876948}},{"name":"conv2/pointwise_filter","shape":[1,1,32,64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.015265831292844286,"min":-1.6792414422128714}},{"name":"conv2/bias","shape":[64],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0020280554598453,"min":-0.37113414915168985}},{"name":"conv3/depthwise_filter","shape":[3,3,64,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.006100742489683862,"min":-0.8907084034938438}},{"name":"conv3/pointwise_filter","shape":[1,1,64,128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.016276211832083907,"min":-2.0508026908425725}},{"name":"conv3/bias","shape":[128],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.003394414279975143,"min":-0.7637432129944072}},{"name":"conv4/depthwise_filter","shape":[3,3,128,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.006716050119961009,"min":-0.8059260143953211}},{"name":"conv4/pointwise_filter","shape":[1,1,128,256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.021875603993733724,"min":-2.8875797271728514}},{"name":"conv4/bias","shape":[256],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.0041141652009066415,"min":-0.8187188749804216}},{"name":"conv5/depthwise_filter","shape":[3,3,256,1],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.008423839597141042,"min":-0.9013508368940915}},{"name":"conv5/pointwise_filter","shape":[1,1,256,512],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.030007277283014035,"min":-3.8709387695088107}},{"name":"conv5/bias","shape":[512],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.008402082966823203,"min":-1.4871686851277068}},{"name":"conv8/filters","shape":[1,1,512,25],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.028336129469030042,"min":-4.675461362389957}},{"name":"conv8/bias","shape":[25],"dtype":"float32","quantization":{"dtype":"uint8","scale":0.002268134028303857,"min":-0.41053225912299807}}],"paths":["tiny_face_detector_model-shard1"]}]
+
+
+/// FILE: faceRecognition.js ///
+import * as faceapi from '@vladmandic/face-api';
+import { supabase } from './supabaseClient';
+
+// How close (Euclidean distance) two descriptors must be to count as the
+// same person. face-api.js descriptors are 128-d; ~0.5-0.6 is a common
+// threshold. Lower = stricter match.
+export const MATCH_THRESHOLD = 0.5;
+
+// If the second-closest known face is within this distance of the best
+// match, we treat the result as ambiguous and report "no match" rather than
+// guess. This matters most with multiple people in frame or lookalike
+// enrollments -- it's better to say "Welcome, visitor!" than to greet the
+// wrong person confidently.
+export const MATCH_MARGIN = 0.08;
+
+let modelsLoaded = false;
+
+// A smaller detector input size runs noticeably faster per frame at the
+// cost of some range/accuracy on faces far from the camera -- a good
+// trade-off for a robot meant to recognize people up close in real time.
+// Reused across calls instead of constructing a new options object each
+// scan.
+const DETECTOR_OPTIONS = new faceapi.TinyFaceDetectorOptions({
+  inputSize: 320,
+  scoreThreshold: 0.5,
+});
+
+// Models are loaded from /public/models (see setup notes for downloading them)
+export async function loadFaceModels() {
+  if (modelsLoaded) return;
+  const MODEL_URL = '/models';
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+  ]);
+  modelsLoaded = true;
+}
+
+// Detects every face in the frame and returns their descriptors sorted
+// largest (closest to camera) first. Used by the main app to track and
+// queue up everyone in view, instead of reacting to only one face.
+export async function getAllFaceDescriptors(videoOrImage) {
+  const detections = await faceapi
+    .detectAllFaces(videoOrImage, DETECTOR_OPTIONS)
+    .withFaceLandmarks()
+    .withFaceDescriptors();
+
+  if (!detections || detections.length === 0) return [];
+
+  return detections
+    .map((d) => ({
+      descriptor: d.descriptor,
+      area: d.detection.box.width * d.detection.box.height,
+    }))
+    .sort((a, b) => b.area - a.area);
+}
+
+// Returns a Float32Array(128) descriptor for the largest (closest) face in
+// the video/image, or null if no face was found. Used by the admin
+// enrollment page, where only one person is expected in frame at a time.
+export async function getFaceDescriptor(videoOrImage) {
+  const faces = await getAllFaceDescriptors(videoOrImage);
+  return faces.length > 0 ? faces[0].descriptor : null;
+}
+
+function euclideanDistance(a, b) {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    sum += (a[i] - b[i]) ** 2;
+  }
+  return Math.sqrt(sum);
+}
+
+// Fetch all known faces once; call again if you enroll someone new mid-session.
+export async function fetchKnownFaces() {
+  const { data, error } = await supabase
+    .from('known_faces')
+    .select('id, name, title, embedding');
+  if (error) {
+    console.error('Failed to fetch known faces:', error);
+    return [];
+  }
+  // Supabase returns the pgvector column as a string like "[0.1,0.2,...]"
+  return data.map((row) => ({
+    id: row.id,
+    name: row.name,
+    title: row.title || null,
+    embedding: Array.isArray(row.embedding) ? row.embedding : JSON.parse(row.embedding),
+  }));
+}
+
+// Compares a live descriptor against the cached known faces (client-side
+// matching -- fine for a personal robot with a modest number of faces).
+export function matchFace(liveDescriptor, knownFaces) {
+  let best = null;
+  let bestDistance = Infinity;
+  let secondDistance = Infinity;
+
+  for (const face of knownFaces) {
+    const distance = euclideanDistance(liveDescriptor, face.embedding);
+    if (distance < bestDistance) {
+      secondDistance = bestDistance;
+      bestDistance = distance;
+      best = face;
+    } else if (distance < secondDistance) {
+      secondDistance = distance;
+    }
+  }
+
+  if (!best || bestDistance >= MATCH_THRESHOLD) return null;
+
+  // Someone else in the known-faces list is nearly as close a match --
+  // too ambiguous to confidently say who this is.
+  if (secondDistance - bestDistance < MATCH_MARGIN) return null;
+
+  return { name: best.name, title: best.title, distance: bestDistance };
+}
+
+// Used by the admin page to save a newly enrolled face.
+export async function saveFace(name, title, descriptor) {
+  const { error } = await supabase
+    .from('known_faces')
+    .insert({ name, title, embedding: Array.from(descriptor) });
+  if (error) throw error;
+}
+
+
+/// FILE: supabaseClient.js ///
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn(
+    'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Add them to your .env file.'
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+
+/// FILE: AdminPage.css ///
+.admin-container {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+.admin-subtitle {
+  color: #7f8c8d;
+  margin-bottom: 24px;
+}
+
+.admin-webcam-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 2px solid #34495e;
+}
+
+.admin-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #34495e;
+  background: #1e2a3a;
+  color: #ecf0f1;
+  font-size: 16px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+.admin-button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #2ecc71;
+  color: #0a0f18;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.admin-button:disabled {
+  background: #34495e;
+  color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+.admin-message {
+  margin-top: 14px;
+}
+
+.admin-message.error {
+  color: #e74c3c;
+}
+
+.admin-message.success {
+  color: #2ecc71;
+}
+
+.admin-back-link {
+  display: inline-block;
+  margin-top: 24px;
+  color: #5dade2;
+}
+
+/* Add this block to your existing AdminPage.css */
+
+.admin-select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #34495e;
+  background: #1e2a3a;
+  color: #ecf0f1;
+  font-size: 16px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+  appearance: none;
+  cursor: pointer;
+}
+
+.admin-select:disabled {
+  color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+
+
+/// FILE: AdminPage.jsx ///
+import { useState, useRef, useEffect, useCallback } from 'react';
+import Webcam from 'react-webcam';
+import { loadFaceModels, getFaceDescriptor, saveFace } from './lib/faceRecognition';
+import './AdminPage.css';
+
+// Preset roles shown in the dropdown. Add/remove as needed -- picking
+// "Other" reveals a free-text field for anything not listed here.
+const TITLE_OPTIONS = ['Admin', 'Teacher', 'Dean', 'Staff', 'Student', 'Guest', 'Other'];
+
+function AdminPage() {
+  const webcamRef = useRef(null);
+  const [modelsReady, setModelsReady] = useState(false);
+  const [name, setName] = useState('');
+  const [title, setTitle] = useState(TITLE_OPTIONS[0]);
+  const [customTitle, setCustomTitle] = useState('');
+  const [status, setStatus] = useState('idle'); // idle | capturing | saving | success | error
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    loadFaceModels().then(() => setModelsReady(true));
+  }, []);
+
+  const handleEnroll = useCallback(async () => {
+    const finalTitle = title === 'Other' ? customTitle.trim() : title;
+
+    if (!name.trim()) {
+      setStatus('error');
+      setMessage('Enter a name first.');
+      return;
+    }
+    if (!finalTitle) {
+      setStatus('error');
+      setMessage('Choose or enter a title (e.g. Admin, Teacher, Dean).');
+      return;
+    }
+    if (!webcamRef.current || !webcamRef.current.video) return;
+
+    setStatus('capturing');
+    setMessage('Look at the camera...');
+
+    const descriptor = await getFaceDescriptor(webcamRef.current.video);
+    if (!descriptor) {
+      setStatus('error');
+      setMessage('No face detected. Try again with better lighting.');
+      return;
+    }
+
+    setStatus('saving');
+    try {
+      await saveFace(name.trim(), finalTitle, descriptor);
+      setStatus('success');
+      setMessage(`Saved "${name.trim()}" (${finalTitle})!`);
+      setName('');
+      setCustomTitle('');
+      setTitle(TITLE_OPTIONS[0]);
+    } catch (err) {
+      setStatus('error');
+      setMessage(err.message || 'Failed to save face.');
+    }
+  }, [name, title, customTitle]);
+
+  const isBusy = status === 'capturing' || status === 'saving';
+
+  return (
+    <div className="admin-container">
+      <h1>Enroll a New Face</h1>
+      <p className="admin-subtitle">
+        {modelsReady ? 'Models loaded. Enter details, then capture.' : 'Loading recognition models...'}
+      </p>
+
+      <div className="admin-webcam-wrap">
+        <Webcam
+          ref={webcamRef}
+          audio={false}
+          screenshotFormat="image/jpeg"
+          videoConstraints={{ width: 320, height: 240, facingMode: 'user' }}
+        />
+      </div>
+
+      <input
+        type="text"
+        placeholder="Person's name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="admin-input"
+        disabled={isBusy}
+      />
+
+      <select
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="admin-select"
+        disabled={isBusy}
+      >
+        {TITLE_OPTIONS.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+
+      {title === 'Other' && (
+        <input
+          type="text"
+          placeholder="Enter custom title"
+          value={customTitle}
+          onChange={(e) => setCustomTitle(e.target.value)}
+          className="admin-input"
+          disabled={isBusy}
+        />
+      )}
+
+      <button
+        onClick={handleEnroll}
+        disabled={!modelsReady || isBusy}
+        className="admin-button"
+      >
+        {isBusy ? 'Working...' : 'Capture & Save'}
+      </button>
+
+      {message && <p className={`admin-message ${status}`}>{message}</p>}
+
+      <a className="admin-back-link" href="/">
+        &larr; Back to robot
+      </a>
+    </div>
+  );
+}
+
+export default AdminPage;
+
+
+/// FILE: App.css ///
+.counter {
+  font-size: 16px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  margin-bottom: 24px;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.hero {
+  position: relative;
+
+  .base,
+  .framework,
+  .vite {
+    inset-inline: 0;
+    margin: 0 auto;
+  }
+
+  .base {
+    width: 170px;
+    position: relative;
+    z-index: 0;
+  }
+
+  .framework,
+  .vite {
+    position: absolute;
+  }
+
+  .framework {
+    z-index: 1;
+    top: 34px;
+    height: 28px;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
+      scale(1.4);
+  }
+
+  .vite {
+    z-index: 0;
+    top: 107px;
+    height: 26px;
+    width: auto;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
+      scale(0.8);
+  }
+}
+
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  place-content: center;
+  place-items: center;
+  flex-grow: 1;
+
+  @media (max-width: 1024px) {
+    padding: 32px 20px 24px;
+    gap: 18px;
+  }
+}
+
+#next-steps {
+  display: flex;
+  border-top: 1px solid var(--border);
+  text-align: left;
+
+  & > div {
+    flex: 1 1 0;
+    padding: 32px;
+    @media (max-width: 1024px) {
+      padding: 24px 20px;
+    }
+  }
+
+  .icon {
+    margin-bottom: 16px;
+    width: 22px;
+    height: 22px;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+#docs {
+  border-right: 1px solid var(--border);
+
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+#next-steps ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  margin: 32px 0 0;
+
+  .logo {
+    height: 18px;
+  }
+
+  a {
+    color: var(--text-h);
+    font-size: 16px;
+    border-radius: 6px;
+    background: var(--social-bg);
+    display: flex;
+    padding: 6px 12px;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: box-shadow 0.3s;
+
+    &:hover {
+      box-shadow: var(--shadow);
+    }
+    .button-icon {
+      height: 18px;
+      width: 18px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    li {
+      flex: 1 1 calc(50% - 8px);
+    }
+
+    a {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+  }
+}
+
+#spacer {
+  height: 88px;
+  border-top: 1px solid var(--border);
+  @media (max-width: 1024px) {
+    height: 48px;
+  }
+}
+
+.ticks {
+  position: relative;
+  width: 100%;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    border: 5px solid transparent;
+  }
+
+  &::before {
+    left: 0;
+    border-left-color: var(--border);
+  }
+  &::after {
+    right: 0;
+    border-right-color: var(--border);
+  }
+}
+
+
+
+
+/// FILE: App.jsx ///
+import { useState, useRef, useEffect, useCallback } from 'react';
+import Webcam from 'react-webcam';
+import * as tf from '@tensorflow/tfjs';
+import * as blazeface from '@tensorflow-models/blazeface';
+import {
+  loadFaceModels,
+  getAllFaceDescriptors,
+  fetchKnownFaces,
+  matchFace,
+} from './lib/faceRecognition';
+import './index.css';
+
+const FACE_SCORE_THRESHOLD = 0.5;
+const MOTION_THRESHOLD = 15;
+const MISS_TOLERANCE = 5;
+const ROBOT_NAME = 'Trix';
+const INTRO_GREETING = `Hi there! I'm ${ROBOT_NAME}, your friendly robot assistant. Nice to meet you!`;
+const DEFAULT_GREETING = 'Welcome, visitor!';
+// How long, per person (or per "unknown visitor"), before we're willing to
+// greet them again if they're still lingering in frame.
+const RE_GREET_COOLDOWN_MS = 15000;
+// How long to stay "awake" after the last face/speech activity before
+// drifting off to sleep.
+const SLEEP_GRACE_MS = 5000;
+// How often (ms) to scan for faces once someone is present. Kept separate
+// from the 500ms presence/motion loop since it's a heavier call. Short
+// enough that the confirm-count check below still resolves in well under
+// a second.
+const RECOGNITION_INTERVAL_MS = 350;
+// Identity confirmation now uses a hit/miss SCORE per candidate rather than
+// a strict "must match every single consecutive scan" streak. A scan that
+// doesn't see a given identity subtracts a small penalty instead of wiping
+// their progress back to zero -- so one noisy/ambiguous frame (a blink, a
+// bad angle, momentary occlusion by another person in frame) doesn't force
+// them to start over. A candidate is only dropped once it's been missed for
+// several scans in a row, i.e. they've genuinely left frame.
+//
+// Confirming a KNOWN face and confirming "unknown visitor" are NOT held to
+// the same bar on purpose. Greeting someone a scan late is a minor delay;
+// confidently telling a known person "Welcome, visitor!" is the costly,
+// embarrassing mistake. So it takes far more accumulated evidence to
+// confirm "visitor" than to confirm a recognized face.
+const RECOGNITION_CONFIRM_HITS_KNOWN = 3;
+const RECOGNITION_CONFIRM_HITS_UNKNOWN = 8;
+// How much a candidate's score decays on a scan where it isn't seen.
+const RECOGNITION_MISS_PENALTY = 1;
+// A candidate not seen for this many consecutive scans is dropped entirely
+// (genuinely gone, not just a glitchy frame).
+const RECOGNITION_DROP_AFTER_MISSES = 6;
+// After finishing a greeting, how long to keep showing that person's name
+// on screen before handing off to the next person in the queue.
+const GREET_DISPLAY_HOLD_MS = 1200;
+const UNKNOWN_KEY = 'UNKNOWN_VISITOR';
+
+// Eye-tracking tuning
+const MAX_PUPIL_OFFSET_X = 22;
+const MAX_PUPIL_OFFSET_Y = 14;
+const INVERT_X = true;
+const INVERT_Y = false;
+
+// Blink tuning
+const BLINK_MIN_DELAY = 2200;
+const BLINK_MAX_DELAY = 5000;
+const BLINK_DURATION = 160;
+
+function RobotFace({ state, isSpeaking, eyeOffset, isBlinking }) {
+  const { x, y } = eyeOffset;
+
+  return (
+    <svg className="face-svg" viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">
+      {state === 'loading' && (
+        <g className="face-group loading">
+          <circle className="loading-dot" cx="90" cy="70" r="7" />
+          <circle className="loading-dot delay1" cx="120" cy="70" r="7" />
+          <circle className="loading-dot delay2" cx="150" cy="70" r="7" />
+        </g>
+      )}
+
+      {state === 'sleeping' && (
+        <g className="face-group sleeping">
+          <path className="eye eye-left" d="M 60 70 Q 80 82 100 70" />
+          <path className="eye eye-right" d="M 140 70 Q 160 82 180 70" />
+          <path className="mouth" d="M 105 95 Q 120 90 135 95" />
+          <text className="z-particle z1" x="165" y="40">Z</text>
+          <text className="z-particle z2" x="180" y="25">Z</text>
+          <text className="z-particle z3" x="195" y="10">z</text>
+        </g>
+      )}
+
+      {state === 'happy' && (
+        <g className="face-group happy">
+          <g
+            className={`eye-unit eye-unit-left ${isBlinking ? 'blinking' : ''}`}
+            style={{ transform: `translate(${x}px, ${y}px)` }}
+          >
+            <circle className="eye-white" cx="80" cy="65" r="22" />
+            <circle className="pupil" cx="80" cy="65" r="10" />
+            <circle className="pupil-shine" cx="77" cy="62" r="3" />
+          </g>
+
+          <g
+            className={`eye-unit eye-unit-right ${isBlinking ? 'blinking' : ''}`}
+            style={{ transform: `translate(${x}px, ${y}px)` }}
+          >
+            <circle className="eye-white" cx="160" cy="65" r="22" />
+            <circle className="pupil" cx="160" cy="65" r="10" />
+            <circle className="pupil-shine" cx="157" cy="62" r="3" />
+          </g>
+
+          <g
+            className="mouth-unit"
+            style={{ transform: `translate(${x * 0.4}px, ${y * 0.3}px)` }}
+          >
+            <path
+              className={`mouth smile ${isSpeaking ? 'talking' : ''}`}
+              d="M 95 107 Q 120 133 145 107"
+            />
+          </g>
+        </g>
+      )}
+    </svg>
+  );
+}
+
+function App() {
+  const webcamRef = useRef(null);
+  const modelRef = useRef(null);
+  const intervalRef = useRef(null);
+  const recognitionIntervalRef = useRef(null);
+  const blinkTimeoutRef = useRef(null);
+  const sleepTimeoutRef = useRef(null);
+  const canvasRef = useRef(document.createElement('canvas'));
+  const prevFrameRef = useRef(null);
+  const missCountRef = useRef(0);
+  const isRecognizingRef = useRef(false);
+
+  // --- Multi-face greeting queue -------------------------------------
+  // When several people are in frame at once, we don't try to greet them
+  // all simultaneously (that's what was getting "scrambled"). Instead each
+  // confirmed identity is pushed onto a queue and greeted one at a time.
+  const greetQueueRef = useRef([]); // pending entries: { key, name, title }
+  const queuedKeysRef = useRef(new Set()); // keys currently queued OR being greeted
+  const activeGreetRef = useRef(null); // entry currently being greeted, if any
+  const candidateStreakRef = useRef(new Map()); // key -> { score, misses } (see RECOGNITION_* constants)
+  const lastGreetedAtRef = useRef(new Map()); // key -> timestamp last greeted
+
+  const [isModelLoading, setIsModelLoading] = useState(true);
+  const [isFaceDetected, setIsFaceDetected] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voicesReady, setVoicesReady] = useState(false);
+  const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
+  const [isBlinking, setIsBlinking] = useState(false);
+  // The person (or "unknown visitor") currently being greeted / displayed.
+  // null means nobody is actively being addressed right now.
+  const [activeGreeting, setActiveGreeting] = useState(null);
+  const [knownFaces, setKnownFaces] = useState([]);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [introFinished, setIntroFinished] = useState(false);
+  const [isAwake, setIsAwake] = useState(false);
+
+  // Load BlazeFace (presence/wake detection + eye tracking)
+  useEffect(() => {
+    const loadModel = async () => {
+      await tf.ready();
+      const loadedModel = await blazeface.load({
+        maxFaces: 1,
+        scoreThreshold: FACE_SCORE_THRESHOLD,
+      });
+      modelRef.current = loadedModel;
+      setIsModelLoading(false);
+    };
+    loadModel();
+  }, []);
+
+  // Load face recognition models + the known-faces cache from Supabase
+  useEffect(() => {
+    loadFaceModels();
+    fetchKnownFaces().then((faces) => {
+      console.log(`Loaded ${faces.length} known face(s) from Supabase.`);
+      setKnownFaces(faces);
+    });
+  }, []);
+
+  // Voices for speech synthesis
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const handleVoices = () => {
+      if (window.speechSynthesis.getVoices().length > 0) setVoicesReady(true);
+    };
+    handleVoices();
+    window.speechSynthesis.onvoiceschanged = handleVoices;
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
+  // Stay "awake" as long as a face is present or she's speaking. Once both
+  // go false, wait SLEEP_GRACE_MS of continued inactivity before sleeping --
+  // any face/speech activity during that window cancels the countdown.
+  useEffect(() => {
+    const activelyAwake = isFaceDetected || isSpeaking;
+
+    if (activelyAwake) {
+      if (sleepTimeoutRef.current) {
+        clearTimeout(sleepTimeoutRef.current);
+        sleepTimeoutRef.current = null;
+      }
+      setIsAwake(true);
+    } else if (!sleepTimeoutRef.current) {
+      sleepTimeoutRef.current = setTimeout(() => {
+        setIsAwake(false);
+        sleepTimeoutRef.current = null;
+      }, SLEEP_GRACE_MS);
+    }
+  }, [isFaceDetected, isSpeaking]);
+
+  // Clear any pending sleep timer on unmount
+  useEffect(() => {
+    return () => {
+      if (sleepTimeoutRef.current) clearTimeout(sleepTimeoutRef.current);
+    };
+  }, []);
+
+  // Independent blink loop -- runs whenever she's awake
+  useEffect(() => {
+    if (!isAwake) return;
+
+    const scheduleBlink = () => {
+      const delay = BLINK_MIN_DELAY + Math.random() * (BLINK_MAX_DELAY - BLINK_MIN_DELAY);
+      blinkTimeoutRef.current = setTimeout(() => {
+        setIsBlinking(true);
+        setTimeout(() => setIsBlinking(false), BLINK_DURATION);
+        scheduleBlink();
+      }, delay);
+    };
+
+    scheduleBlink();
+    return () => clearTimeout(blinkTimeoutRef.current);
+  }, [isAwake]);
+
+  const speakText = useCallback((text, onEnd) => {
+    if (!('speechSynthesis' in window)) {
+      onEnd?.();
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice =
+      voices.find((v) => /en-US|en_US/i.test(v.lang) && /female|Zira|Samantha|Google US/i.test(v.name)) ||
+      voices.find((v) => /en/i.test(v.lang));
+    if (preferredVoice) utterance.voice = preferredVoice;
+    utterance.rate = 1;
+    utterance.pitch = 1.1;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      onEnd?.();
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      onEnd?.();
+    };
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  // Pulls the next pending greeting off the queue (if nobody's currently
+  // being greeted) and speaks it. Recurses via speakText's onEnd once the
+  // hold period passes, so people are greeted strictly one at a time no
+  // matter how many are queued up.
+  const processGreetQueue = useCallback(() => {
+    if (activeGreetRef.current) return;
+    const next = greetQueueRef.current.shift();
+    if (!next) return;
+
+    activeGreetRef.current = next;
+    lastGreetedAtRef.current.set(next.key, Date.now());
+    setActiveGreeting({ name: next.name, title: next.title });
+
+    const text = next.name
+      ? next.title
+        ? `Welcome back, ${next.title} ${next.name}!`
+        : `Welcome back, ${next.name}!`
+      : DEFAULT_GREETING;
+
+    speakText(text, () => {
+      setTimeout(() => {
+        queuedKeysRef.current.delete(next.key);
+        activeGreetRef.current = null;
+        setActiveGreeting(null);
+        processGreetQueue();
+      }, GREET_DISPLAY_HOLD_MS);
+    });
+  }, [speakText]);
+
+  const checkMotion = useCallback((video) => {
+    const canvas = canvasRef.current;
+    const w = 64;
+    const h = 48;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, w, h);
+    const frame = ctx.getImageData(0, 0, w, h).data;
+
+    if (!prevFrameRef.current) {
+      prevFrameRef.current = frame;
+      return 0;
+    }
+    let diffSum = 0;
+    const prev = prevFrameRef.current;
+    for (let i = 0; i < frame.length; i += 4) {
+      diffSum += Math.abs(frame[i] - prev[i]);
+    }
+    prevFrameRef.current = frame;
+    return diffSum / (w * h);
+  }, []);
+
+  const detectFace = useCallback(async () => {
+    if (
+      modelRef.current &&
+      webcamRef.current &&
+      webcamRef.current.video &&
+      webcamRef.current.video.readyState === 4
+    ) {
+      const video = webcamRef.current.video;
+      const predictions = await modelRef.current.estimateFaces(video, false);
+      const motionDiff = checkMotion(video);
+      const motion = motionDiff > MOTION_THRESHOLD;
+
+      if (predictions.length > 0) {
+        const [x1, y1] = predictions[0].topLeft;
+        const [x2, y2] = predictions[0].bottomRight;
+        const faceCenterX = (x1 + x2) / 2;
+        const faceCenterY = (y1 + y2) / 2;
+
+        const nx = (faceCenterX / video.videoWidth - 0.5) * 2;
+        const ny = (faceCenterY / video.videoHeight - 0.5) * 2;
+
+        const clampedX = Math.max(-1, Math.min(1, nx)) * (INVERT_X ? -1 : 1);
+        const clampedY = Math.max(-1, Math.min(1, ny)) * (INVERT_Y ? -1 : 1);
+
+        setEyeOffset({
+          x: clampedX * MAX_PUPIL_OFFSET_X,
+          y: clampedY * MAX_PUPIL_OFFSET_Y,
+        });
+      }
+
+      if (predictions.length > 0 || motion) {
+        missCountRef.current = 0;
+        setIsFaceDetected(true);
+      } else {
+        missCountRef.current += 1;
+        if (missCountRef.current >= MISS_TOLERANCE) {
+          setIsFaceDetected(false);
+          setEyeOffset({ x: 0, y: 0 });
+          // Scene is empty -- clear the queue and in-progress state so the
+          // next person to arrive gets a clean slate. Cooldown timestamps
+          // are intentionally kept so a person stepping out and back in
+          // within RE_GREET_COOLDOWN_MS isn't re-greeted right away.
+          greetQueueRef.current = [];
+          queuedKeysRef.current = new Set();
+          candidateStreakRef.current = new Map();
+          activeGreetRef.current = null;
+          setActiveGreeting(null);
+        }
+      }
+    }
+  }, [checkMotion]);
+
+  useEffect(() => {
+    if (!isModelLoading && hasStarted && introFinished) {
+      intervalRef.current = setInterval(detectFace, 300);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isModelLoading, hasStarted, introFinished, detectFace]);
+
+  // Fired by the "Get Started" button. Calling speakText directly inside the
+  // click handler (rather than in a useEffect after state changes) keeps it
+  // inside the user-gesture context some browsers require for audio.
+  // Detection only starts once the intro utterance's onEnd fires, so an
+  // early visitor can't cut Trix off mid-introduction.
+  const handleGetStarted = useCallback(() => {
+    setHasStarted(true);
+    speakText(INTRO_GREETING, () => setIntroFinished(true));
+  }, [speakText]);
+
+  // Scans every face currently in frame (not just the closest one) and
+  // queues up a greeting for each newly-confirmed identity. Runs on its own
+  // (slower) interval since computing descriptors is heavier than the
+  // BlazeFace presence check above.
+  const scanFaces = useCallback(async () => {
+    if (
+      isRecognizingRef.current ||
+      !webcamRef.current ||
+      !webcamRef.current.video ||
+      webcamRef.current.video.readyState !== 4
+    ) {
+      return;
+    }
+    isRecognizingRef.current = true;
+    try {
+      const faces = await getAllFaceDescriptors(webcamRef.current.video);
+      if (faces.length === 0) return;
+
+      const now = Date.now();
+      const seenThisScan = new Set();
+
+      for (const face of faces) {
+        const match = knownFaces.length > 0 ? matchFace(face.descriptor, knownFaces) : null;
+        const key = match ? `${match.name}::${match.title ?? ''}` : UNKNOWN_KEY;
+        seenThisScan.add(key);
+
+        const entry = candidateStreakRef.current.get(key) || { score: 0, misses: 0 };
+        entry.score += 1;
+        entry.misses = 0;
+        candidateStreakRef.current.set(key, entry);
+
+        const requiredHits = match
+          ? RECOGNITION_CONFIRM_HITS_KNOWN
+          : RECOGNITION_CONFIRM_HITS_UNKNOWN;
+        const confirmed = entry.score >= requiredHits;
+        const alreadyPending = queuedKeysRef.current.has(key);
+        const cooldownElapsed =
+          now - (lastGreetedAtRef.current.get(key) || 0) > RE_GREET_COOLDOWN_MS;
+
+        if (confirmed && cooldownElapsed && !alreadyPending) {
+          greetQueueRef.current.push({
+            key,
+            name: match ? match.name : null,
+            title: match ? match.title : null,
+          });
+          queuedKeysRef.current.add(key);
+          console.log(
+            match
+              ? `Queued greeting for "${match.name}" (${match.title || 'no title'})`
+              : 'Queued greeting for an unrecognized visitor.'
+          );
+        }
+      }
+
+      // Anyone not seen this scan gets docked instead of instantly wiped --
+      // tolerates a dropped frame without throwing away real progress. Only
+      // drop a candidate once it's been missed repeatedly in a row (or its
+      // score has fully decayed), meaning they've actually left frame.
+      for (const [key, entry] of candidateStreakRef.current.entries()) {
+        if (seenThisScan.has(key)) continue;
+        entry.misses += 1;
+        entry.score = Math.max(0, entry.score - RECOGNITION_MISS_PENALTY);
+        if (entry.misses >= RECOGNITION_DROP_AFTER_MISSES || entry.score <= 0) {
+          candidateStreakRef.current.delete(key);
+        }
+      }
+
+      processGreetQueue();
+    } finally {
+      isRecognizingRef.current = false;
+    }
+  }, [knownFaces, processGreetQueue]);
+
+  useEffect(() => {
+    if (!isFaceDetected) return;
+    // Fire immediately (rather than waiting for the first interval tick) so
+    // scanning starts the moment a face shows up.
+    scanFaces();
+    recognitionIntervalRef.current = setInterval(scanFaces, RECOGNITION_INTERVAL_MS);
+    return () => clearInterval(recognitionIntervalRef.current);
+  }, [isFaceDetected, scanFaces]);
+
+  const currentState = isModelLoading ? 'loading' : isAwake ? 'happy' : 'sleeping';
+
+  const renderMessage = () => {
+    if (isModelLoading) return 'Waking up brain...';
+    if (isFaceDetected) {
+      if (activeGreeting) {
+        if (activeGreeting.name) {
+          const greetName = activeGreeting.title
+            ? `${activeGreeting.title} ${activeGreeting.name}`
+            : activeGreeting.name;
+          return `Welcome back, ${greetName}!`;
+        }
+        return DEFAULT_GREETING;
+      }
+      return 'Welcome, human!';
+    }
+    if (isSpeaking) return INTRO_GREETING;
+    if (isAwake) return 'Still here...';
+    return 'Zzz...';
+  };
+
+  if (!hasStarted) {
+    return (
+      <div className="app-container">
+        <div className="start-screen">
+          <div className="start-glow" />
+          <h1 className="start-title">{ROBOT_NAME}</h1>
+          <p className="start-subtitle">
+            {isModelLoading ? 'Waking up my brain...' : 'Your friendly robot is ready to meet you.'}
+          </p>
+          <button
+            className="start-button"
+            disabled={isModelLoading}
+            onClick={handleGetStarted}
+          >
+            {isModelLoading ? 'Loading...' : 'Get Started'}
+          </button>
+        </div>
+
+        {/* Mounted early so the camera permission prompt and webcam feed are
+            ready the moment the user clicks Get Started. */}
+        <div className="hidden-webcam">
+          <Webcam
+            ref={webcamRef}
+            audio={false}
+            screenshotFormat="image/jpeg"
+            videoConstraints={{ width: 320, height: 240, facingMode: 'user' }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-container">
+      <div className={`robot-head ${currentState}`}>
+        <RobotFace
+          state={currentState}
+          isSpeaking={isSpeaking}
+          eyeOffset={eyeOffset}
+          isBlinking={isBlinking}
+        />
+      </div>
+
+      <div className="robot-message">{renderMessage()}</div>
+
+      {/* Bottom badge showing the currently-greeted person's title/role */}
+      {isFaceDetected && activeGreeting?.title && (
+        <div className="robot-subtitle">{activeGreeting.title}</div>
+      )}
+
+      <div className="status-bar">
+        {isModelLoading ? (
+          <span>Loading model</span>
+        ) : !introFinished ? (
+          <span>Saying hello</span>
+        ) : (
+          <span>{isFaceDetected ? 'Face detected' : 'No face detected'}</span>
+        )}
+      </div>
+
+      <div className="hidden-webcam">
+        <Webcam
+          ref={webcamRef}
+          audio={false}
+          screenshotFormat="image/jpeg"
+          videoConstraints={{ width: 320, height: 240, facingMode: 'user' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
+
+/// FILE: index.css ///
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: radial-gradient(circle at center, #1e2a3a 0%, #0a0f18 100%);
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vmin;
+  width: 100%;
+  height: 100%;
+  padding: 1.5vmin;
+}
+
+/* --- Robot head "shell" --- */
+.robot-head {
+  width: 92vmin;
+  height: 72vmin;
+  max-width: none;
+  max-height: none;
+  background: linear-gradient(145deg, #f4f6f8, #d9dee3);
+  border-radius: 50% / 45%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3vmin;
+  box-shadow:
+    0 0 0 1.2vmin #ffffff,
+    0 4vmin 6vmin rgba(0, 0, 0, 0.5),
+    inset 0 -1.2vmin 2vmin rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.4s ease, transform 0.3s ease;
+}
+
+.robot-head.happy {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 6px #ffffff,
+    0 0 50px rgba(0, 212, 255, 0.5),
+    0 20px 40px rgba(0, 0, 0, 0.5),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.robot-head.sleeping {
+  box-shadow:
+    0 0 0 6px #ffffff,
+    0 0 30px rgba(52, 152, 219, 0.25),
+    0 20px 40px rgba(0, 0, 0, 0.5),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Inner "screen" --- */
+.face-svg {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, #10161f 0%, #05070b 100%);
+  border-radius: 45% / 40%;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+/* --- Eyes & mouth --- */
+.eye {
+  fill: none;
+  stroke: #5dade2;
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: d 0.3s ease, stroke 0.4s ease;
+}
+
+.happy .eye {
+  stroke: #00d4ff;
+}
+
+.mouth {
+  fill: none;
+  stroke: #5dade2;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.happy .mouth {
+  stroke: #00d4ff;
+  stroke-width: 8;
+}
+
+/* Sleeping bob */
+.face-group.sleeping {
+  animation: bob 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+/* Floating Z particles */
+.z-particle {
+  fill: #5dade2;
+  font-size: 14px;
+  font-weight: bold;
+  font-family: 'Segoe UI', sans-serif;
+  opacity: 0;
+  animation: floatZ 3s ease-in infinite;
+}
+
+.z1 { animation-delay: 0s; }
+.z2 { animation-delay: 0.6s; font-size: 12px; }
+.z3 { animation-delay: 1.2s; font-size: 10px; }
+
+@keyframes floatZ {
+  0% { opacity: 0; transform: translateY(0); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-24px); }
+}
+
+/* Happy bounce-in */
+.face-group.happy {
+  animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.85); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Happy eyes gentle blink loop */
+.happy .eye.blink {
+  animation: eyeBlink 4.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.happy .eye-right.blink {
+  animation-delay: 0.05s;
+}
+
+@keyframes eyeBlink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.15); }
+}
+
+/* Loading dots */
+.loading-dot {
+  fill: #5dade2;
+  animation: loadingPulse 1.2s ease-in-out infinite;
+}
+
+.loading-dot.delay1 { animation-delay: 0.2s; }
+.loading-dot.delay2 { animation-delay: 0.4s; }
+
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-8px); }
+}
+
+.robot-message {
+  margin-top: 0.5vmin;
+  font-size: clamp(16px, 3vmin, 26px);
+  color: #ecf0f1;
+  font-weight: 500;
+  letter-spacing: 1px;
+  min-height: 30px;
+  text-align: center;
+}
+
+.status-bar {
+  font-size: clamp(11px, 1.6vmin, 15px);
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+
+.hidden-webcam {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+
+/* --- Open eyes (happy / tracking state) --- */
+.eye-white {
+  fill: #0d1420;
+  stroke: #00d4ff;
+  stroke-width: 3;
+}
+
+.pupil {
+  fill: #00d4ff;
+}
+
+.pupil-shine {
+  fill: #eafdff;
+  opacity: 0.85;
+}
+
+/* The whole eye unit (white + pupil) glides together */
+.eye-unit {
+  transition: transform 0.15s ease-out;
+  transform-origin: center;
+}
+
+.eye-unit.blinking {
+  transform: scaleY(0.08) !important;
+}
+
+
+/* Mouth container glides with the face, plus a subtle idle sway */
+.mouth-unit {
+  transition: transform 0.15s ease-out;
+  transform-origin: center;
+}
+
+.mouth {
+  fill: none;
+  stroke: #5dade2;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.happy .mouth {
+  stroke: #00d4ff;
+  stroke-width: 8;
+  animation: mouthIdle 3.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Idle animation: gentle width/curve pulse when not talking */
+@keyframes mouthIdle {
+  0%, 100% { transform: scaleX(1) scaleY(1); }
+  50% { transform: scaleX(1.04) scaleY(0.92); }
+}
+
+/* Talking animation takes priority over idle when speaking */
+.mouth.smile.talking {
+  animation: mouthTalk 0.28s ease-in-out infinite;
+}
+
+@keyframes mouthTalk {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.15); }
+}
+
+/* Add this to index.css, e.g. right after the existing .robot-message rule */
+
+.robot-subtitle {
+  font-size: clamp(14px, 2.4vmin, 20px);
+  color: #00d4ff;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: -0.5vmin;
+  text-align: center;
+  animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Add these to index.css alongside the other rules */
+
+.start-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5vmin;
+  text-align: center;
+  padding: 4vmin;
+}
+
+.start-glow {
+  position: absolute;
+  inset: -20% ;
+  background: radial-gradient(circle at center, rgba(0, 212, 255, 0.25) 0%, transparent 65%);
+  filter: blur(10px);
+  animation: startPulse 3.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes startPulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.start-title {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(40px, 9vmin, 88px);
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #ecf0f1;
+  text-shadow: 0 0 30px rgba(0, 212, 255, 0.6);
+}
+
+.start-subtitle {
+  position: relative;
+  z-index: 1;
+  color: #95a5a6;
+  font-size: clamp(14px, 2.4vmin, 20px);
+  max-width: 60vmin;
+}
+
+.start-button {
+  position: relative;
+  z-index: 1;
+  margin-top: 1vmin;
+  padding: 1.4vmin 5vmin;
+  font-size: clamp(16px, 2.6vmin, 22px);
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #0a0f18;
+  background: #00d4ff;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+  transition: transform 0.15s ease, box-shadow 0.3s ease;
+}
+
+.start-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 45px rgba(0, 212, 255, 0.7);
+}
+
+.start-button:disabled {
+  background: #34495e;
+  color: #7f8c8d;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+
+/// FILE: main.jsx ///
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.jsx';
+import AdminPage from './AdminPage.jsx';
+
+// Simple path-based routing -- visit /admin to enroll faces.
+// (No react-router needed for just two screens.)
+const isAdminRoute = window.location.pathname.startsWith('/admin');
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    {isAdminRoute ? <AdminPage /> : <App />}
+  </StrictMode>,
+);
+
+
+/// FILE: eslint.config.js ///
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+  },
+])
+
+
+
+/// FILE: index.html ///
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>robot-face</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+
+/// FILE: package.json ///
+{
+  "name": "robot-face",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
+    "@tensorflow-models/blazeface": "^0.1.0",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@vladmandic/face-api": "^1.7.15",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-webcam": "^7.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^10.6.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.7.0",
+    "vite": "^8.1.1"
+  }
+}
+
+
+
+/// FILE: vite.config.js ///
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+

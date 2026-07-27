@@ -1,0 +1,89 @@
+.admin-container {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+.admin-subtitle {
+  color: #7f8c8d;
+  margin-bottom: 24px;
+}
+
+.admin-webcam-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 2px solid #34495e;
+}
+
+.admin-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #34495e;
+  background: #1e2a3a;
+  color: #ecf0f1;
+  font-size: 16px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+.admin-button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #2ecc71;
+  color: #0a0f18;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.admin-button:disabled {
+  background: #34495e;
+  color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+.admin-message {
+  margin-top: 14px;
+}
+
+.admin-message.error {
+  color: #e74c3c;
+}
+
+.admin-message.success {
+  color: #2ecc71;
+}
+
+.admin-back-link {
+  display: inline-block;
+  margin-top: 24px;
+  color: #5dade2;
+}
+
+/* Add this block to your existing AdminPage.css */
+
+.admin-select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #34495e;
+  background: #1e2a3a;
+  color: #ecf0f1;
+  font-size: 16px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+  appearance: none;
+  cursor: pointer;
+}
+
+.admin-select:disabled {
+  color: #7f8c8d;
+  cursor: not-allowed;
+}
