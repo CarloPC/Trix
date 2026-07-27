@@ -483,7 +483,7 @@ function App() {
         }
         return DEFAULT_GREETING;
       }
-      return 'Welcome, human!';
+      return 'Welcome!';
     }
     if (isSpeaking) return INTRO_GREETING;
     if (isAwake) return 'Still here...';
