@@ -1,124 +1,225 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import Webcam from 'react-webcam';
-import { loadFaceModels, getFaceDescriptor, saveFace } from './lib/faceRecognition';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { fetchAllFaces, updateFace, deleteFace } from './lib/faceRecognition';
 import './AdminPage.css';
 
-// Preset roles shown in the dropdown. Add/remove as needed -- picking
-// "Other" reveals a free-text field for anything not listed here.
-const TITLE_OPTIONS = ['Admin', 'Teacher', 'Dean', 'Staff', 'Student', 'Guest', 'Other'];
-
 function AdminPage() {
-  const webcamRef = useRef(null);
-  const [modelsReady, setModelsReady] = useState(false);
-  const [name, setName] = useState('');
-  const [title, setTitle] = useState(TITLE_OPTIONS[0]);
-  const [customTitle, setCustomTitle] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | capturing | saving | success | error
-  const [message, setMessage] = useState('');
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [rowBusyId, setRowBusyId] = useState(null);
+  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    loadFaceModels().then(() => setModelsReady(true));
+  const loadUsers = useCallback(async () => {
+    setUsersLoading(true);
+    setUsersError('');
+    try {
+      const data = await fetchAllFaces();
+      setUsers(data);
+    } catch (err) {
+      setUsersError(err.message || 'Failed to load registered users.');
+    } finally {
+      setUsersLoading(false);
+    }
   }, []);
 
-  const handleEnroll = useCallback(async () => {
-    const finalTitle = title === 'Other' ? customTitle.trim() : title;
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
-    if (!name.trim()) {
-      setStatus('error');
-      setMessage('Enter a name first.');
-      return;
-    }
-    if (!finalTitle) {
-      setStatus('error');
-      setMessage('Choose or enter a title (e.g. Admin, Teacher, Dean).');
-      return;
-    }
-    if (!webcamRef.current || !webcamRef.current.video) return;
+  const startEdit = (user) => {
+    setEditingId(user.id);
+    setEditName(user.name);
+    setEditTitle(user.title || '');
+  };
 
-    setStatus('capturing');
-    setMessage('Look at the camera...');
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditTitle('');
+  };
 
-    const descriptor = await getFaceDescriptor(webcamRef.current.video);
-    if (!descriptor) {
-      setStatus('error');
-      setMessage('No face detected. Try again with better lighting.');
-      return;
-    }
-
-    setStatus('saving');
+  const saveEdit = async (id) => {
+    if (!editName.trim()) return;
+    setRowBusyId(id);
     try {
-      await saveFace(name.trim(), finalTitle, descriptor);
-      setStatus('success');
-      setMessage(`Saved "${name.trim()}" (${finalTitle})!`);
-      setName('');
-      setCustomTitle('');
-      setTitle(TITLE_OPTIONS[0]);
+      await updateFace(id, { name: editName.trim(), title: editTitle.trim() || null });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, name: editName.trim(), title: editTitle.trim() || null } : u))
+      );
+      cancelEdit();
     } catch (err) {
-      setStatus('error');
-      setMessage(err.message || 'Failed to save face.');
+      setUsersError(err.message || 'Failed to update user.');
+    } finally {
+      setRowBusyId(null);
     }
-  }, [name, title, customTitle]);
+  };
 
-  const isBusy = status === 'capturing' || status === 'saving';
+  const removeUser = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"? This removes their face data too.`)) return;
+    setRowBusyId(id);
+    try {
+      await deleteFace(id);
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+    } catch (err) {
+      setUsersError(err.message || 'Failed to delete user.');
+    } finally {
+      setRowBusyId(null);
+    }
+  };
+
+  // Client-side filter -- fine at the scale a personal-robot face table
+  // will realistically reach. Matches on name or title, case-insensitive.
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) => u.name.toLowerCase().includes(q) || (u.title || '').toLowerCase().includes(q)
+    );
+  }, [users, search]);
 
   return (
     <div className="admin-container">
-      <h1>Enroll a New Face</h1>
-      <p className="admin-subtitle">
-        {modelsReady ? 'Models loaded. Enter details, then capture.' : 'Loading recognition models...'}
-      </p>
+      <h1>Registered Users</h1>
 
-      <div className="admin-webcam-wrap">
-        <Webcam
-          ref={webcamRef}
-          audio={false}
-          screenshotFormat="image/jpeg"
-          videoConstraints={{ width: 320, height: 240, facingMode: 'user' }}
-        />
+      <div className="admin-toolbar">
+        <p className="admin-subtitle admin-subtitle--inline">
+          {usersLoading
+            ? 'Loading...'
+            : `${filteredUsers.length} of ${users.length} ${users.length === 1 ? 'person' : 'people'}`}
+        </p>
+        <div className="admin-toolbar-actions">
+          <input
+            type="text"
+            placeholder="Search name or title..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="admin-input admin-input--search"
+            disabled={usersLoading}
+          />
+          <button
+            className="admin-refresh-btn"
+            onClick={loadUsers}
+            disabled={usersLoading}
+            title="Refresh"
+          >
+            {usersLoading ? '...' : '⟳'}
+          </button>
+        </div>
       </div>
 
-      <input
-        type="text"
-        placeholder="Person's name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="admin-input"
-        disabled={isBusy}
-      />
+      {usersError && <p className="admin-message error">{usersError}</p>}
 
-      <select
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="admin-select"
-        disabled={isBusy}
-      >
-        {TITLE_OPTIONS.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
-
-      {title === 'Other' && (
-        <input
-          type="text"
-          placeholder="Enter custom title"
-          value={customTitle}
-          onChange={(e) => setCustomTitle(e.target.value)}
-          className="admin-input"
-          disabled={isBusy}
-        />
+      {usersLoading && (
+        <div className="admin-skeleton">
+          {[...Array(4)].map((_, i) => (
+            <div className="admin-skeleton-row" key={i} />
+          ))}
+        </div>
       )}
 
-      <button
-        onClick={handleEnroll}
-        disabled={!modelsReady || isBusy}
-        className="admin-button"
-      >
-        {isBusy ? 'Working...' : 'Capture & Save'}
-      </button>
+      {!usersLoading && users.length > 0 && (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Title</th>
+                <th className="admin-table-actions-head"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((user) => {
+                const isEditing = editingId === user.id;
+                const isBusyRow = rowBusyId === user.id;
+                return (
+                  <tr key={user.id} className={isBusyRow ? 'admin-row-busy' : ''}>
+                    {isEditing ? (
+                      <>
+                        <td data-label="Name">
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="admin-input admin-input--row"
+                            disabled={isBusyRow}
+                            autoFocus
+                          />
+                        </td>
+                        <td data-label="Title">
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="admin-input admin-input--row"
+                            placeholder="Title"
+                            disabled={isBusyRow}
+                          />
+                        </td>
+                        <td className="admin-table-actions">
+                          <button
+                            className="admin-link-btn"
+                            onClick={() => saveEdit(user.id)}
+                            disabled={isBusyRow}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="admin-link-btn"
+                            onClick={cancelEdit}
+                            disabled={isBusyRow}
+                          >
+                            Cancel
+                          </button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td data-label="Name">{user.name}</td>
+                        <td data-label="Title">{user.title || '\u2014'}</td>
+                        <td className="admin-table-actions">
+                          <button
+                            className="admin-link-btn"
+                            onClick={() => startEdit(user)}
+                            disabled={isBusyRow}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="admin-link-btn admin-link-btn--danger"
+                            onClick={() => removeUser(user.id, user.name)}
+                            disabled={isBusyRow}
+                          >
+                            {isBusyRow ? '...' : 'Delete'}
+                          </button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
 
-      {message && <p className={`admin-message ${status}`}>{message}</p>}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="admin-table-empty">
+                    No matches for "{search}".
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!usersLoading && users.length === 0 && !usersError && (
+        <p className="admin-subtitle">No one enrolled yet.</p>
+      )}
+
+      <a className="admin-add-link" href="/admin/register">
+        + Enroll a new face
+      </a>
 
       <a className="admin-back-link" href="/">
         &larr; Back to robot

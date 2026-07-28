@@ -124,3 +124,54 @@ export async function saveFace(name, title, descriptor) {
     .insert({ name, title, embedding: Array.from(descriptor) });
   if (error) throw error;
 }
+
+// --- Admin dashboard CRUD ---------------------------------------------
+// The functions below back the "manage registered users" table on the
+// admin page. They intentionally never select/return the `embedding`
+// column -- it's a 128-length float array per row and the dashboard has
+// no use for it, so leaving it out keeps list fetches light.
+
+// Lists every enrolled person, most recently added first. Falls back to
+// ordering by id if the table has no created_at column.
+export async function fetchAllFaces() {
+  let { data, error } = await supabase
+    .from('known_faces')
+    .select('id, name, title, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    // created_at may not exist on older schemas -- retry without it.
+    ({ data, error } = await supabase
+      .from('known_faces')
+      .select('id, name, title')
+      .order('id', { ascending: false }));
+  }
+
+  if (error) {
+    console.error('Failed to fetch faces:', error);
+    throw error;
+  }
+  return data;
+}
+
+// Updates a person's name and/or title. Pass only the fields you want to
+// change, e.g. updateFace(id, { title: 'Teacher' }).
+export async function updateFace(id, updates) {
+  const { error } = await supabase
+    .from('known_faces')
+    .update(updates)
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// Deletes an enrolled person (and their face embedding) entirely.
+export async function deleteFace(id) {
+  const { error } = await supabase
+    .from('known_faces')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
+
+/// FILE: supabaseClient.js ///

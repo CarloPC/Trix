@@ -1,3 +1,5 @@
+import { askAI } from './lib/aiChat';
+import { listenOnce, isSpeechRecognitionSupported } from './lib/voiceInput';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import * as tf from '@tensorflow/tfjs';
@@ -144,6 +146,12 @@ function App() {
   const candidateStreakRef = useRef(new Map()); // key -> { score, misses } (see RECOGNITION_* constants)
   const lastGreetedAtRef = useRef(new Map()); // key -> timestamp last greeted
 
+  // FOR AI CHAT
+  const [assistantMode, setAssistantMode] = useState('idle'); // idle | listening | thinking
+  const [lastQuestion, setLastQuestion] = useState('');
+  const [lastAnswer, setLastAnswer] = useState('');
+  const conversationHistoryRef = useRef([]); // short rolling memory per session
+
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [isFaceDetected, setIsFaceDetected] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -157,7 +165,7 @@ function App() {
   const [hasStarted, setHasStarted] = useState(false);
   const [introFinished, setIntroFinished] = useState(false);
   const [isAwake, setIsAwake] = useState(false);
-
+  
   // Load BlazeFace (presence/wake detection + eye tracking)
   useEffect(() => {
     const loadModel = async () => {
@@ -284,13 +292,17 @@ function App() {
       : DEFAULT_GREETING;
 
     speakText(text, () => {
-      setTimeout(() => {
-        queuedKeysRef.current.delete(next.key);
-        activeGreetRef.current = null;
-        setActiveGreeting(null);
-        processGreetQueue();
-      }, GREET_DISPLAY_HOLD_MS);
-    });
+  setTimeout(() => {
+    queuedKeysRef.current.delete(next.key);
+    activeGreetRef.current = null;
+    setActiveGreeting(null);
+    processGreetQueue();
+    // Nobody else queued up? Open the floor for questions.
+    if (!greetQueueRef.current.length) {
+      startListening(next.name);
+    }
+  }, GREET_DISPLAY_HOLD_MS);
+});
   }, [speakText]);
 
   const checkMotion = useCallback((video) => {
@@ -386,6 +398,43 @@ function App() {
     setHasStarted(true);
     speakText(INTRO_GREETING, () => setIntroFinished(true));
   }, [speakText]);
+  const startListening = useCallback((personName) => {
+  if (!isSpeechRecognitionSupported()) return;
+  setAssistantMode('listening');
+  setLastQuestion('');
+
+  listenOnce({
+    timeoutMs: 8000,
+    onResult: async (transcript) => {
+      setLastQuestion(transcript);
+      setAssistantMode('thinking');
+      try {
+        const answer = await askAI(transcript, conversationHistoryRef.current, personName);
+        conversationHistoryRef.current = [
+          ...conversationHistoryRef.current,
+          { role: 'user', content: transcript },
+          { role: 'assistant', content: answer },
+        ].slice(-8); // keep memory short
+
+        setLastAnswer(answer);
+        speakText(answer, () => {
+          setAssistantMode('idle');
+          // Still there? Keep the conversation going.
+          if (isFaceDetected) startListening(personName);
+        });
+      } catch (err) {
+        console.error('AI error:', err);
+        speakText("Sorry, I'm having trouble thinking right now.", () =>
+          setAssistantMode('idle')
+        );
+      }
+    },
+    onError: (err) => {
+      console.warn('Speech recognition error:', err.message);
+      setAssistantMode('idle');
+    },
+  });
+}, [speakText, isFaceDetected]);
 
   // Scans every face currently in frame (not just the closest one) and
   // queues up a greeting for each newly-confirmed identity. Runs on its own
@@ -534,7 +583,11 @@ function App() {
       </div>
 
       <div className="robot-message">{renderMessage()}</div>
-
+      {assistantMode === 'listening' && <div className="robot-subtitle">🎤 Listening...</div>}
+{assistantMode === 'thinking' && <div className="robot-subtitle">💭 Thinking...</div>}
+{lastAnswer && assistantMode === 'idle' && (
+  <div className="robot-subtitle">{lastAnswer}</div>
+)}
       {/* Bottom badge showing the currently-greeted person's title/role */}
       {isFaceDetected && activeGreeting?.title && (
         <div className="robot-subtitle">{activeGreeting.title}</div>

@@ -140,6 +140,57 @@ export async function saveFace(name, title, descriptor) {
   if (error) throw error;
 }
 
+// --- Admin dashboard CRUD ---------------------------------------------
+// The functions below back the "manage registered users" table on the
+// admin page. They intentionally never select/return the `embedding`
+// column -- it's a 128-length float array per row and the dashboard has
+// no use for it, so leaving it out keeps list fetches light.
+
+// Lists every enrolled person, most recently added first. Falls back to
+// ordering by id if the table has no created_at column.
+export async function fetchAllFaces() {
+  let { data, error } = await supabase
+    .from('known_faces')
+    .select('id, name, title, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    // created_at may not exist on older schemas -- retry without it.
+    ({ data, error } = await supabase
+      .from('known_faces')
+      .select('id, name, title')
+      .order('id', { ascending: false }));
+  }
+
+  if (error) {
+    console.error('Failed to fetch faces:', error);
+    throw error;
+  }
+  return data;
+}
+
+// Updates a person's name and/or title. Pass only the fields you want to
+// change, e.g. updateFace(id, { title: 'Teacher' }).
+export async function updateFace(id, updates) {
+  const { error } = await supabase
+    .from('known_faces')
+    .update(updates)
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// Deletes an enrolled person (and their face embedding) entirely.
+export async function deleteFace(id) {
+  const { error } = await supabase
+    .from('known_faces')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
+
+/// FILE: supabaseClient.js ///
+
 
 /// FILE: supabaseClient.js ///
 import { createClient } from '@supabase/supabase-js';
@@ -158,7 +209,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /// FILE: AdminPage.css ///
 .admin-container {
-  max-width: 420px;
+  max-width: 640px;
   margin: 0 auto;
   padding: 40px 20px;
   font-family: 'Segoe UI', system-ui, sans-serif;
@@ -171,11 +222,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
   margin-bottom: 24px;
 }
 
-.admin-webcam-wrap {
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 20px;
-  border: 2px solid #34495e;
+.admin-subtitle--inline {
+  margin: 0;
+  white-space: nowrap;
 }
 
 .admin-input {
@@ -190,24 +239,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
   box-sizing: border-box;
 }
 
-.admin-button {
-  width: 100%;
-  padding: 12px;
-  border-radius: 8px;
-  border: none;
-  background: #2ecc71;
-  color: #0a0f18;
-  font-weight: 600;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.admin-button:disabled {
-  background: #34495e;
-  color: #7f8c8d;
-  cursor: not-allowed;
-}
-
 .admin-message {
   margin-top: 14px;
 }
@@ -220,157 +251,481 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
   color: #2ecc71;
 }
 
-.admin-back-link {
-  display: inline-block;
-  margin-top: 24px;
-  color: #5dade2;
+/* --- Toolbar: count + search + refresh --- */
+
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
-/* Add this block to your existing AdminPage.css */
+.admin-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+  justify-content: flex-end;
+}
 
-.admin-select {
-  width: 100%;
-  padding: 10px 14px;
+.admin-input--search {
+  margin-bottom: 0;
+  max-width: 240px;
+}
+
+.admin-refresh-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
   border-radius: 8px;
   border: 1px solid #34495e;
   background: #1e2a3a;
   color: #ecf0f1;
   font-size: 16px;
-  margin-bottom: 12px;
-  box-sizing: border-box;
-  appearance: none;
   cursor: pointer;
 }
 
-.admin-select:disabled {
+.admin-refresh-btn:hover:not(:disabled) {
+  border-color: #5dade2;
+  color: #5dade2;
+}
+
+.admin-refresh-btn:disabled {
   color: #7f8c8d;
   cursor: not-allowed;
 }
 
+/* --- Scrollable table --- */
+
+.admin-table-wrap {
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid #34495e;
+  border-radius: 10px;
+  /* Space for a custom scrollbar so it doesn't sit flush against content */
+  scrollbar-width: thin;
+  scrollbar-color: #34495e #1e2a3a;
+}
+
+.admin-table-wrap::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-table-wrap::-webkit-scrollbar-track {
+  background: #1e2a3a;
+}
+
+.admin-table-wrap::-webkit-scrollbar-thumb {
+  background: #34495e;
+  border-radius: 8px;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 420px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #34495e;
+  vertical-align: middle;
+}
+
+.admin-table thead th {
+  position: sticky;
+  top: 0;
+  background: #16202e;
+  color: #7f8c8d;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  z-index: 1;
+  border-bottom: 1px solid #34495e;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(93, 173, 226, 0.06);
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-row-busy {
+  opacity: 0.6;
+}
+
+.admin-table-actions-head {
+  width: 1%;
+}
+
+.admin-table-actions {
+  white-space: nowrap;
+  text-align: right;
+  width: 1%;
+}
+
+.admin-table-empty {
+  text-align: center;
+  color: #7f8c8d;
+  padding: 24px 12px;
+}
+
+.admin-input--row {
+  margin-bottom: 0;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+.admin-link-btn {
+  background: none;
+  border: none;
+  color: #5dade2;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.admin-link-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.admin-link-btn:disabled {
+  color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+.admin-link-btn--danger {
+  color: #e74c3c;
+}
+
+/* --- Loading skeleton (shown while the initial fetch is in flight) --- */
+
+.admin-skeleton {
+  border: 1px solid #34495e;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.admin-skeleton-row {
+  height: 44px;
+  border-bottom: 1px solid #34495e;
+  background: linear-gradient(90deg, #1e2a3a 25%, #24344a 37%, #1e2a3a 63%);
+  background-size: 400% 100%;
+  animation: admin-skeleton-shine 1.4s ease infinite;
+}
+
+.admin-skeleton-row:last-child {
+  border-bottom: none;
+}
+
+@keyframes admin-skeleton-shine {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.admin-add-link {
+  display: block;
+  margin-top: 28px;
+  color: #2ecc71;
+  font-weight: 600;
+}
+
+.admin-back-link {
+  display: inline-block;
+  margin-top: 16px;
+  color: #5dade2;
+}
+
+/* --- Small screens: stack each row into a labeled card instead of a
+   cramped horizontally-scrolled table --- */
+
+@media (max-width: 520px) {
+  .admin-table-wrap {
+    border: none;
+    max-height: 60vh;
+  }
+
+  .admin-table,
+  .admin-table tbody,
+  .admin-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tr {
+    border: 1px solid #34495e;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 8px 4px;
+  }
+
+  .admin-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: none;
+    padding: 6px 12px;
+    text-align: right;
+  }
+
+  .admin-table td[data-label]::before {
+    content: attr(data-label);
+    color: #7f8c8d;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+  }
+
+  .admin-table-actions {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .admin-table-empty {
+    text-align: center;
+  }
+}
 
 
 /// FILE: AdminPage.jsx ///
-import { useState, useRef, useEffect, useCallback } from 'react';
-import Webcam from 'react-webcam';
-import { loadFaceModels, getFaceDescriptor, saveFace } from './lib/faceRecognition';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { fetchAllFaces, updateFace, deleteFace } from './lib/faceRecognition';
 import './AdminPage.css';
 
-// Preset roles shown in the dropdown. Add/remove as needed -- picking
-// "Other" reveals a free-text field for anything not listed here.
-const TITLE_OPTIONS = ['Admin', 'Teacher', 'Dean', 'Staff', 'Student', 'Guest', 'Other'];
-
 function AdminPage() {
-  const webcamRef = useRef(null);
-  const [modelsReady, setModelsReady] = useState(false);
-  const [name, setName] = useState('');
-  const [title, setTitle] = useState(TITLE_OPTIONS[0]);
-  const [customTitle, setCustomTitle] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | capturing | saving | success | error
-  const [message, setMessage] = useState('');
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [rowBusyId, setRowBusyId] = useState(null);
+  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    loadFaceModels().then(() => setModelsReady(true));
+  const loadUsers = useCallback(async () => {
+    setUsersLoading(true);
+    setUsersError('');
+    try {
+      const data = await fetchAllFaces();
+      setUsers(data);
+    } catch (err) {
+      setUsersError(err.message || 'Failed to load registered users.');
+    } finally {
+      setUsersLoading(false);
+    }
   }, []);
 
-  const handleEnroll = useCallback(async () => {
-    const finalTitle = title === 'Other' ? customTitle.trim() : title;
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
-    if (!name.trim()) {
-      setStatus('error');
-      setMessage('Enter a name first.');
-      return;
-    }
-    if (!finalTitle) {
-      setStatus('error');
-      setMessage('Choose or enter a title (e.g. Admin, Teacher, Dean).');
-      return;
-    }
-    if (!webcamRef.current || !webcamRef.current.video) return;
+  const startEdit = (user) => {
+    setEditingId(user.id);
+    setEditName(user.name);
+    setEditTitle(user.title || '');
+  };
 
-    setStatus('capturing');
-    setMessage('Look at the camera...');
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditTitle('');
+  };
 
-    const descriptor = await getFaceDescriptor(webcamRef.current.video);
-    if (!descriptor) {
-      setStatus('error');
-      setMessage('No face detected. Try again with better lighting.');
-      return;
-    }
-
-    setStatus('saving');
+  const saveEdit = async (id) => {
+    if (!editName.trim()) return;
+    setRowBusyId(id);
     try {
-      await saveFace(name.trim(), finalTitle, descriptor);
-      setStatus('success');
-      setMessage(`Saved "${name.trim()}" (${finalTitle})!`);
-      setName('');
-      setCustomTitle('');
-      setTitle(TITLE_OPTIONS[0]);
+      await updateFace(id, { name: editName.trim(), title: editTitle.trim() || null });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, name: editName.trim(), title: editTitle.trim() || null } : u))
+      );
+      cancelEdit();
     } catch (err) {
-      setStatus('error');
-      setMessage(err.message || 'Failed to save face.');
+      setUsersError(err.message || 'Failed to update user.');
+    } finally {
+      setRowBusyId(null);
     }
-  }, [name, title, customTitle]);
+  };
 
-  const isBusy = status === 'capturing' || status === 'saving';
+  const removeUser = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"? This removes their face data too.`)) return;
+    setRowBusyId(id);
+    try {
+      await deleteFace(id);
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+    } catch (err) {
+      setUsersError(err.message || 'Failed to delete user.');
+    } finally {
+      setRowBusyId(null);
+    }
+  };
+
+  // Client-side filter -- fine at the scale a personal-robot face table
+  // will realistically reach. Matches on name or title, case-insensitive.
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) => u.name.toLowerCase().includes(q) || (u.title || '').toLowerCase().includes(q)
+    );
+  }, [users, search]);
 
   return (
     <div className="admin-container">
-      <h1>Enroll a New Face</h1>
-      <p className="admin-subtitle">
-        {modelsReady ? 'Models loaded. Enter details, then capture.' : 'Loading recognition models...'}
-      </p>
+      <h1>Registered Users</h1>
 
-      <div className="admin-webcam-wrap">
-        <Webcam
-          ref={webcamRef}
-          audio={false}
-          screenshotFormat="image/jpeg"
-          videoConstraints={{ width: 320, height: 240, facingMode: 'user' }}
-        />
+      <div className="admin-toolbar">
+        <p className="admin-subtitle admin-subtitle--inline">
+          {usersLoading
+            ? 'Loading...'
+            : `${filteredUsers.length} of ${users.length} ${users.length === 1 ? 'person' : 'people'}`}
+        </p>
+        <div className="admin-toolbar-actions">
+          <input
+            type="text"
+            placeholder="Search name or title..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="admin-input admin-input--search"
+            disabled={usersLoading}
+          />
+          <button
+            className="admin-refresh-btn"
+            onClick={loadUsers}
+            disabled={usersLoading}
+            title="Refresh"
+          >
+            {usersLoading ? '...' : 'âŸ³'}
+          </button>
+        </div>
       </div>
 
-      <input
-        type="text"
-        placeholder="Person's name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="admin-input"
-        disabled={isBusy}
-      />
+      {usersError && <p className="admin-message error">{usersError}</p>}
 
-      <select
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="admin-select"
-        disabled={isBusy}
-      >
-        {TITLE_OPTIONS.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
-
-      {title === 'Other' && (
-        <input
-          type="text"
-          placeholder="Enter custom title"
-          value={customTitle}
-          onChange={(e) => setCustomTitle(e.target.value)}
-          className="admin-input"
-          disabled={isBusy}
-        />
+      {usersLoading && (
+        <div className="admin-skeleton">
+          {[...Array(4)].map((_, i) => (
+            <div className="admin-skeleton-row" key={i} />
+          ))}
+        </div>
       )}
 
-      <button
-        onClick={handleEnroll}
-        disabled={!modelsReady || isBusy}
-        className="admin-button"
-      >
-        {isBusy ? 'Working...' : 'Capture & Save'}
-      </button>
+      {!usersLoading && users.length > 0 && (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Title</th>
+                <th className="admin-table-actions-head"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((user) => {
+                const isEditing = editingId === user.id;
+                const isBusyRow = rowBusyId === user.id;
+                return (
+                  <tr key={user.id} className={isBusyRow ? 'admin-row-busy' : ''}>
+                    {isEditing ? (
+                      <>
+                        <td data-label="Name">
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="admin-input admin-input--row"
+                            disabled={isBusyRow}
+                            autoFocus
+                          />
+                        </td>
+                        <td data-label="Title">
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="admin-input admin-input--row"
+                            placeholder="Title"
+                            disabled={isBusyRow}
+                          />
+                        </td>
+                        <td className="admin-table-actions">
+                          <button
+                            className="admin-link-btn"
+                            onClick={() => saveEdit(user.id)}
+                            disabled={isBusyRow}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="admin-link-btn"
+                            onClick={cancelEdit}
+                            disabled={isBusyRow}
+                          >
+                            Cancel
+                          </button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td data-label="Name">{user.name}</td>
+                        <td data-label="Title">{user.title || '\u2014'}</td>
+                        <td className="admin-table-actions">
+                          <button
+                            className="admin-link-btn"
+                            onClick={() => startEdit(user)}
+                            disabled={isBusyRow}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="admin-link-btn admin-link-btn--danger"
+                            onClick={() => removeUser(user.id, user.name)}
+                            disabled={isBusyRow}
+                          >
+                            {isBusyRow ? '...' : 'Delete'}
+                          </button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
 
-      {message && <p className={`admin-message ${status}`}>{message}</p>}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="admin-table-empty">
+                    No matches for "{search}".
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!usersLoading && users.length === 0 && !usersError && (
+        <p className="admin-subtitle">No one enrolled yet.</p>
+      )}
+
+      <a className="admin-add-link" href="/admin/register">
+        + Enroll a new face
+      </a>
 
       <a className="admin-back-link" href="/">
         &larr; Back to robot
@@ -1057,7 +1412,7 @@ function App() {
         }
         return DEFAULT_GREETING;
       }
-      return 'Welcome, human!';
+      return 'Welcome!';
     }
     if (isSpeaking) return INTRO_GREETING;
     if (isAwake) return 'Still here...';
@@ -1494,16 +1849,248 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import AdminPage from './AdminPage.jsx';
+import Registration from './Registration.jsx';
 
-// Simple path-based routing -- visit /admin to enroll faces.
-// (No react-router needed for just two screens.)
-const isAdminRoute = window.location.pathname.startsWith('/admin');
+// Simple path-based routing -- no react-router needed for three screens:
+//   /                -> App (the robot face)
+//   /admin           -> AdminPage (manage registered users: view/edit/delete)
+//   /admin/register  -> Registration (enroll a new face)
+const path = window.location.pathname;
+
+function Root() {
+  if (path.startsWith('/admin/register')) return <Registration />;
+  if (path.startsWith('/admin')) return <AdminPage />;
+  return <App />;
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {isAdminRoute ? <AdminPage /> : <App />}
+    <Root />
   </StrictMode>,
 );
+
+
+/// FILE: Registration.css ///
+.registration-container {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+.registration-subtitle {
+  color: #7f8c8d;
+  margin-bottom: 24px;
+}
+
+.registration-webcam-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 2px solid #34495e;
+}
+
+.registration-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #34495e;
+  background: #1e2a3a;
+  color: #ecf0f1;
+  font-size: 16px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+.registration-select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #34495e;
+  background: #1e2a3a;
+  color: #ecf0f1;
+  font-size: 16px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+  appearance: none;
+  cursor: pointer;
+}
+
+.registration-select:disabled {
+  color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+.registration-button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #2ecc71;
+  color: #0a0f18;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.registration-button:disabled {
+  background: #34495e;
+  color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+.registration-message {
+  margin-top: 14px;
+}
+
+.registration-message.error {
+  color: #e74c3c;
+}
+
+.registration-message.success {
+  color: #2ecc71;
+}
+
+.registration-back-link {
+  display: inline-block;
+  margin-top: 24px;
+  color: #5dade2;
+}
+
+
+/// FILE: Registration.jsx ///
+import { useState, useRef, useEffect, useCallback } from 'react';
+import Webcam from 'react-webcam';
+import { loadFaceModels, getFaceDescriptor, saveFace } from './lib/faceRecognition';
+import './Registration.css';
+
+// Preset roles shown in the dropdown. Add/remove as needed -- picking
+// "Other" reveals a free-text field for anything not listed here.
+const TITLE_OPTIONS = ['Admin', 'Teacher', 'Dean', 'Staff', 'Student', 'Guest', 'Other'];
+
+function Registration() {
+  const webcamRef = useRef(null);
+  const [modelsReady, setModelsReady] = useState(false);
+  const [name, setName] = useState('');
+  const [title, setTitle] = useState(TITLE_OPTIONS[0]);
+  const [customTitle, setCustomTitle] = useState('');
+  const [status, setStatus] = useState('idle'); // idle | capturing | saving | success | error
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    loadFaceModels().then(() => setModelsReady(true));
+  }, []);
+
+  const handleEnroll = useCallback(async () => {
+    const finalTitle = title === 'Other' ? customTitle.trim() : title;
+
+    if (!name.trim()) {
+      setStatus('error');
+      setMessage('Enter a name first.');
+      return;
+    }
+    if (!finalTitle) {
+      setStatus('error');
+      setMessage('Choose or enter a title (e.g. Admin, Teacher, Dean).');
+      return;
+    }
+    if (!webcamRef.current || !webcamRef.current.video) return;
+
+    setStatus('capturing');
+    setMessage('Look at the camera...');
+
+    const descriptor = await getFaceDescriptor(webcamRef.current.video);
+    if (!descriptor) {
+      setStatus('error');
+      setMessage('No face detected. Try again with better lighting.');
+      return;
+    }
+
+    setStatus('saving');
+    try {
+      await saveFace(name.trim(), finalTitle, descriptor);
+      setStatus('success');
+      setMessage(`Saved "${name.trim()}" (${finalTitle})!`);
+      setName('');
+      setCustomTitle('');
+      setTitle(TITLE_OPTIONS[0]);
+    } catch (err) {
+      setStatus('error');
+      setMessage(err.message || 'Failed to save face.');
+    }
+  }, [name, title, customTitle]);
+
+  const isBusy = status === 'capturing' || status === 'saving';
+
+  return (
+    <div className="registration-container">
+      <h1>Enroll a New Face</h1>
+      <p className="registration-subtitle">
+        {modelsReady ? 'Models loaded. Enter details, then capture.' : 'Loading recognition models...'}
+      </p>
+
+      <div className="registration-webcam-wrap">
+        <Webcam
+          ref={webcamRef}
+          audio={false}
+          screenshotFormat="image/jpeg"
+          videoConstraints={{ width: 320, height: 240, facingMode: 'user' }}
+        />
+      </div>
+
+      <input
+        type="text"
+        placeholder="Person's name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="registration-input"
+        disabled={isBusy}
+      />
+
+      <select
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="registration-select"
+        disabled={isBusy}
+      >
+        {TITLE_OPTIONS.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+
+      {title === 'Other' && (
+        <input
+          type="text"
+          placeholder="Enter custom title"
+          value={customTitle}
+          onChange={(e) => setCustomTitle(e.target.value)}
+          className="registration-input"
+          disabled={isBusy}
+        />
+      )}
+
+      <button
+        onClick={handleEnroll}
+        disabled={!modelsReady || isBusy}
+        className="registration-button"
+      >
+        {isBusy ? 'Working...' : 'Capture & Save'}
+      </button>
+
+      {message && <p className={`registration-message ${status}`}>{message}</p>}
+
+      <a className="registration-back-link" href="/admin">
+        &larr; Back to admin dashboard
+      </a>
+    </div>
+  );
+}
+
+export default Registration;
 
 
 /// FILE: eslint.config.js ///
