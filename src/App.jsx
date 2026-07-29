@@ -70,11 +70,19 @@ const BLINK_MIN_DELAY = 2200;
 const BLINK_MAX_DELAY = 5000;
 const BLINK_DURATION = 160;
 
-function RobotFace({ state, isSpeaking, eyeOffset, isBlinking }) {
+function RobotFace({ state, isSpeaking, eyeOffset, isBlinking, isScanning }) {
   const { x, y } = eyeOffset;
 
   return (
     <svg className="face-svg" viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        {/* Matches the rounded "screen" shape of .face-svg (border-radius: 45% / 40%)
+            so the scan lines/glow only ever render inside the face, never past its edges. */}
+        <clipPath id="faceClip">
+          <ellipse cx="120" cy="70" rx="116" ry="66" />
+        </clipPath>
+      </defs>
+
       {state === 'loading' && (
         <g className="face-group loading">
           <circle className="loading-dot" cx="90" cy="70" r="7" />
@@ -97,7 +105,7 @@ function RobotFace({ state, isSpeaking, eyeOffset, isBlinking }) {
       {state === 'happy' && (
         <g className="face-group happy">
           <g
-            className={`eye-unit eye-unit-left ${isBlinking ? 'blinking' : ''}`}
+            className={`eye-unit eye-unit-left ${isBlinking ? 'blinking' : ''} ${isScanning ? 'scanning' : ''}`}
             style={{ transform: `translate(${x}px, ${y}px)` }}
           >
             <circle className="eye-white" cx="80" cy="65" r="22" />
@@ -106,7 +114,7 @@ function RobotFace({ state, isSpeaking, eyeOffset, isBlinking }) {
           </g>
 
           <g
-            className={`eye-unit eye-unit-right ${isBlinking ? 'blinking' : ''}`}
+            className={`eye-unit eye-unit-right ${isBlinking ? 'blinking' : ''} ${isScanning ? 'scanning' : ''}`}
             style={{ transform: `translate(${x}px, ${y}px)` }}
           >
             <circle className="eye-white" cx="160" cy="65" r="22" />
@@ -123,6 +131,18 @@ function RobotFace({ state, isSpeaking, eyeOffset, isBlinking }) {
               d="M 95 107 Q 120 133 145 107"
             />
           </g>
+
+          {/* Face-recognition scan sweep -- clipped to the face's rounded
+              "screen" shape (faceClip) so the lines/tint never spill onto the
+              robot's outer shell, only the face itself. */}
+          {isScanning && (
+            <g className="scan-overlay" clipPath="url(#faceClip)">
+              <rect className="scan-tint" x="0" y="0" width="240" height="140" />
+              <line className="scan-line line1" x1="0" y1="0" x2="240" y2="0" />
+              <line className="scan-line line2" x1="0" y1="0" x2="240" y2="0" />
+              <line className="scan-line line3" x1="0" y1="0" x2="240" y2="0" />
+            </g>
+          )}
         </g>
       )}
     </svg>
@@ -200,6 +220,13 @@ function App() {
   const [isAwake, setIsAwake] = useState(false);
   const [spokenText, setSpokenText] = useState('');
 const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
+  // True while she's actively working out WHO is in frame -- a face has
+  // been detected but recognition hasn't yet confirmed an identity (and
+  // started a greeting) for anyone in view. Drives the eye-glow color
+  // change and the horizontal scan-line sweep on the face, so facing the
+  // camera during recognition feels intentional rather than like a silent,
+  // awkward stare-down.
+  const [isScanning, setIsScanning] = useState(false);
   // Load BlazeFace (presence/wake detection + eye tracking)
   useEffect(() => {
     const loadModel = async () => {
@@ -237,6 +264,33 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   }, []);
 
   useEffect(() => { isFaceDetectedRef.current = isFaceDetected; }, [isFaceDetected]);
+
+  // Scanning = a face is in frame, she's fully awake and ready, and nobody
+  // has been confirmed/greeted yet. Covers the whole "trying to place who
+  // this is" window (scanFaces runs on RECOGNITION_INTERVAL_MS the entire
+  // time), not just the few ms each individual scan call is in flight --
+  // that flash would be too brief to read as an animation. Also suppressed
+  // once she's actually mid-conversation, since by then someone has already
+  // been recognized/greeted.
+  //
+  // isSpeaking is checked separately from assistantMode === 'idle' on
+  // purpose: right after a greeting, processGreetQueue clears activeGreeting
+  // and calls startListening(..., announce=true), which speaks the "How can
+  // I help you today?" prompt BEFORE flipping assistantMode's React state to
+  // 'listening' (that only happens once the prompt finishes, in
+  // beginListening). Without this check, that gap -- activeGreeting already
+  // null, assistantMode still 'idle', but she's actively talking -- was
+  // falsely read as "scanning" and lit up the eyes/lines mid-sentence.
+  useEffect(() => {
+    setIsScanning(
+      isFaceDetected &&
+        introFinished &&
+        !isModelLoading &&
+        !isSpeaking &&
+        !activeGreeting &&
+        assistantMode === 'idle'
+    );
+  }, [isFaceDetected, introFinished, isModelLoading, isSpeaking, activeGreeting, assistantMode]);
 
   // Stay "awake" as long as a face is present, she's speaking, or she's
   // actively mid-conversation (listening/thinking) -- that last one matters
@@ -709,6 +763,7 @@ useEffect(() => {
         }
         return DEFAULT_GREETING;
       }
+      if (isScanning) return 'Scanning...';
       return 'Welcome!';
     }
     if (isAwake) return 'Still here...';
@@ -755,10 +810,11 @@ useEffect(() => {
           isSpeaking={isSpeaking}
           eyeOffset={eyeOffset}
           isBlinking={isBlinking}
+          isScanning={isScanning}
         />
       </div>
 
-      <div className="robot-message">{renderMessage()}</div>
+      <div className={`robot-message ${isScanning ? 'scanning-text' : ''}`}>{renderMessage()}</div>
 
 {isSpeaking && spokenText && (
   <div className="robot-subtitle speaking-subtitle">
@@ -776,9 +832,9 @@ useEffect(() => {
   </div>
 )}
 {!isSpeaking && assistantMode === 'thinking' && (
-  <div className="robot-subtitle">💭 Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
+  <div className="robot-subtitle">💭­ Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
 )}
-      {/* Bottom badge showing the currently-greeted person's title/role.ðŸ’­
+      {/* Bottom badge showing the currently-greeted person's title/role.Ã°Å¸â€™Â­
           Suppressed while she's speaking so it never stacks under the
           speaking-subtitle above (that was the other half of the
           "double subtitle" bug -- two blue blocks rendering at once). */}
@@ -792,7 +848,9 @@ useEffect(() => {
         ) : !introFinished ? (
           <span>Saying hello</span>
         ) : (
-          <span>{isFaceDetected ? 'Face detected' : 'No face detected'}</span>
+          <span>
+            {isFaceDetected ? (isScanning ? 'Scanning face...' : 'Face detected') : 'No face detected'}
+          </span>
         )}
       </div>
 

@@ -1234,6 +1234,10 @@ const RECOGNITION_DROP_AFTER_MISSES = 6;
 // on screen before handing off to the next person in the queue.
 const GREET_DISPLAY_HOLD_MS = 1200;
 const UNKNOWN_KEY = 'UNKNOWN_VISITOR';
+// Same identity-key scheme scanFaces uses, shared so the active conversation
+// can check "is the person I'm talking to still the one in frame?" against
+// the exact same keys candidateStreakRef tracks.
+const keyForPerson = (name, title) => (name ? `${name}::${title ?? ''}` : UNKNOWN_KEY);
 
 // Eye-tracking tuning
 const MAX_PUPIL_OFFSET_X = 22;
@@ -1246,11 +1250,19 @@ const BLINK_MIN_DELAY = 2200;
 const BLINK_MAX_DELAY = 5000;
 const BLINK_DURATION = 160;
 
-function RobotFace({ state, isSpeaking, eyeOffset, isBlinking }) {
+function RobotFace({ state, isSpeaking, eyeOffset, isBlinking, isScanning }) {
   const { x, y } = eyeOffset;
 
   return (
     <svg className="face-svg" viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        {/* Matches the rounded "screen" shape of .face-svg (border-radius: 45% / 40%)
+            so the scan lines/glow only ever render inside the face, never past its edges. */}
+        <clipPath id="faceClip">
+          <ellipse cx="120" cy="70" rx="116" ry="66" />
+        </clipPath>
+      </defs>
+
       {state === 'loading' && (
         <g className="face-group loading">
           <circle className="loading-dot" cx="90" cy="70" r="7" />
@@ -1273,7 +1285,7 @@ function RobotFace({ state, isSpeaking, eyeOffset, isBlinking }) {
       {state === 'happy' && (
         <g className="face-group happy">
           <g
-            className={`eye-unit eye-unit-left ${isBlinking ? 'blinking' : ''}`}
+            className={`eye-unit eye-unit-left ${isBlinking ? 'blinking' : ''} ${isScanning ? 'scanning' : ''}`}
             style={{ transform: `translate(${x}px, ${y}px)` }}
           >
             <circle className="eye-white" cx="80" cy="65" r="22" />
@@ -1282,7 +1294,7 @@ function RobotFace({ state, isSpeaking, eyeOffset, isBlinking }) {
           </g>
 
           <g
-            className={`eye-unit eye-unit-right ${isBlinking ? 'blinking' : ''}`}
+            className={`eye-unit eye-unit-right ${isBlinking ? 'blinking' : ''} ${isScanning ? 'scanning' : ''}`}
             style={{ transform: `translate(${x}px, ${y}px)` }}
           >
             <circle className="eye-white" cx="160" cy="65" r="22" />
@@ -1299,6 +1311,18 @@ function RobotFace({ state, isSpeaking, eyeOffset, isBlinking }) {
               d="M 95 107 Q 120 133 145 107"
             />
           </g>
+
+          {/* Face-recognition scan sweep -- clipped to the face's rounded
+              "screen" shape (faceClip) so the lines/tint never spill onto the
+              robot's outer shell, only the face itself. */}
+          {isScanning && (
+            <g className="scan-overlay" clipPath="url(#faceClip)">
+              <rect className="scan-tint" x="0" y="0" width="240" height="140" />
+              <line className="scan-line line1" x1="0" y1="0" x2="240" y2="0" />
+              <line className="scan-line line2" x1="0" y1="0" x2="240" y2="0" />
+              <line className="scan-line line3" x1="0" y1="0" x2="240" y2="0" />
+            </g>
+          )}
         </g>
       )}
     </svg>
@@ -1333,6 +1357,13 @@ function App() {
   // removed from this set once they've actually left frame (dropped from
   // candidateStreakRef), at which point the cooldown timer takes back over.
   const greetedPresentRef = useRef(new Set());
+  // The identity-key (see keyForPerson) of whoever the CURRENT conversation
+  // is with. Used after each answer to check "is this still the same
+  // person in frame?" before looping back to listen for a follow-up --
+  // instead of the old check ("is *a* face detected?"), which kept
+  // conversing with a name that had already walked off, and blocked face
+  // recognition from ever greeting whoever replaced them.
+  const activePersonKeyRef = useRef(null);
 
   // Mirrors state into refs so async callbacks (speech/recognition events)
   // always read the latest value instead of a stale closure.
@@ -1369,6 +1400,13 @@ function App() {
   const [isAwake, setIsAwake] = useState(false);
   const [spokenText, setSpokenText] = useState('');
 const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
+  // True while she's actively working out WHO is in frame -- a face has
+  // been detected but recognition hasn't yet confirmed an identity (and
+  // started a greeting) for anyone in view. Drives the eye-glow color
+  // change and the horizontal scan-line sweep on the face, so facing the
+  // camera during recognition feels intentional rather than like a silent,
+  // awkward stare-down.
+  const [isScanning, setIsScanning] = useState(false);
   // Load BlazeFace (presence/wake detection + eye tracking)
   useEffect(() => {
     const loadModel = async () => {
@@ -1407,11 +1445,42 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
 
   useEffect(() => { isFaceDetectedRef.current = isFaceDetected; }, [isFaceDetected]);
 
-  // Stay "awake" as long as a face is present or she's speaking. Once both
-  // go false, wait SLEEP_GRACE_MS of continued inactivity before sleeping --
-  // any face/speech activity during that window cancels the countdown.
+  // Scanning = a face is in frame, she's fully awake and ready, and nobody
+  // has been confirmed/greeted yet. Covers the whole "trying to place who
+  // this is" window (scanFaces runs on RECOGNITION_INTERVAL_MS the entire
+  // time), not just the few ms each individual scan call is in flight --
+  // that flash would be too brief to read as an animation. Also suppressed
+  // once she's actually mid-conversation, since by then someone has already
+  // been recognized/greeted.
+  //
+  // isSpeaking is checked separately from assistantMode === 'idle' on
+  // purpose: right after a greeting, processGreetQueue clears activeGreeting
+  // and calls startListening(..., announce=true), which speaks the "How can
+  // I help you today?" prompt BEFORE flipping assistantMode's React state to
+  // 'listening' (that only happens once the prompt finishes, in
+  // beginListening). Without this check, that gap -- activeGreeting already
+  // null, assistantMode still 'idle', but she's actively talking -- was
+  // falsely read as "scanning" and lit up the eyes/lines mid-sentence.
   useEffect(() => {
-    const activelyAwake = isFaceDetected || isSpeaking;
+    setIsScanning(
+      isFaceDetected &&
+        introFinished &&
+        !isModelLoading &&
+        !isSpeaking &&
+        !activeGreeting &&
+        assistantMode === 'idle'
+    );
+  }, [isFaceDetected, introFinished, isModelLoading, isSpeaking, activeGreeting, assistantMode]);
+
+  // Stay "awake" as long as a face is present, she's speaking, or she's
+  // actively mid-conversation (listening/thinking) -- that last one matters
+  // now that a conversation keeps going by voice alone even with no face in
+  // frame, so she shouldn't visually doze off while still listening for a
+  // follow-up. Once all three go false, wait SLEEP_GRACE_MS of continued
+  // inactivity before sleeping -- any activity during that window cancels
+  // the countdown.
+  useEffect(() => {
+    const activelyAwake = isFaceDetected || isSpeaking || assistantMode !== 'idle';
 
     if (activelyAwake) {
       if (sleepTimeoutRef.current) {
@@ -1425,7 +1494,7 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
         sleepTimeoutRef.current = null;
       }, SLEEP_GRACE_MS);
     }
-  }, [isFaceDetected, isSpeaking]);
+  }, [isFaceDetected, isSpeaking, assistantMode]);
 
   // Clear any pending sleep timer on unmount
   useEffect(() => {
@@ -1523,11 +1592,16 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
     setActiveGreeting(null);
     processGreetQueue();
     if (!greetQueueRef.current.length) {
-      startListeningRef.current(next.name);
+      startListeningRef.current(next.name, true, next.key);
     }
   }, GREET_DISPLAY_HOLD_MS);
 });
   }, [speakText]);
+
+  const processGreetQueueRef = useRef(() => {});
+  useEffect(() => {
+    processGreetQueueRef.current = processGreetQueue;
+  }, [processGreetQueue]);
 
   const checkMotion = useCallback((video) => {
     const canvas = canvasRef.current;
@@ -1628,10 +1702,14 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // so the person knows Trix is actually listening for their question).
   // announce=false skips straight to listening, used when we're already
   // mid-conversation and looping back for a follow-up question.
-  const startListening = useCallback((personName, announce = true) => {
+  // personKey identifies WHO this conversation is with (see keyForPerson) --
+  // used to detect when that specific person has walked off, rather than
+  // just checking whether *some* face is still in frame.
+  const startListening = useCallback((personName, announce = true, personKey = null) => {
   if (!isSpeechRecognitionSupported()) return;
   if (assistantModeRef.current !== 'idle') return; // already mid-conversation, ignore
   assistantModeRef.current = 'listening';
+  activePersonKeyRef.current = personKey;
   stopWakeWordRef.current?.(); // never run wake-word + question listeners at once
   stopWakeWordRef.current = null;
 
@@ -1640,12 +1718,30 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
     setLastQuestion('');
     setLiveTranscript('');
 
+    // Some browsers end a SpeechRecognition session on silence without
+    // firing onerror OR onresult -- just onend. Relying only on onerror to
+    // reset assistantMode back to 'idle' left it stuck on 'listening'
+    // forever in that case, which meant she'd never sleep (isAwake depends
+    // on assistantMode !== 'idle') and could never start a new greeting or
+    // conversation again (both are gated on assistantMode === 'idle').
+    // `handled` tracks whether onResult/onError already dealt with it, so
+    // onEnd only needs to act as a fallback for the case neither did.
+    let handled = false;
+    const endConversationCleanly = () => {
+      setLiveTranscript('');
+      assistantModeRef.current = 'idle';
+      setAssistantMode('idle');
+      activePersonKeyRef.current = null;
+      processGreetQueueRef.current?.();
+    };
+
     listenOnce({
       timeoutMs: 8000,
       // Streams what the person is saying to the screen live, word by
       // word, the same way Gemini/ChatGPT/etc. show your speech as you talk.
       onInterim: (partial) => setLiveTranscript(partial),
       onResult: async (transcript) => {
+        handled = true;
         setLiveTranscript('');
         setLastQuestion(transcript);
         assistantModeRef.current = 'thinking';
@@ -1662,23 +1758,36 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
           speakText(answer, () => {
             assistantModeRef.current = 'idle';
             setAssistantMode('idle');
-            // Keep the conversation going without re-asking "how can I
-            // help" every single turn -- only the first turn announces.
-            if (isFaceDetectedRef.current) startListening(personName, false);
+            // Keep listening for a follow-up regardless of whether the
+            // camera still sees a face -- someone can easily talk from
+            // just outside the frame, and hearing them matters more here
+            // than seeing them. The conversation only actually ends when
+            // the mic hears silence (the onError/onEnd fallback below),
+            // which is what frees things up for face recognition to greet
+            // whoever (if anyone) is in frame next.
+            startListening(personName, false, personKey);
           });
         } catch (err) {
           console.error('AI error:', err);
           speakText("Sorry, I'm having trouble thinking right now.", () => {
             assistantModeRef.current = 'idle';
             setAssistantMode('idle');
+            activePersonKeyRef.current = null;
+            processGreetQueueRef.current?.();
           });
         }
       },
       onError: (err) => {
+        handled = true;
         console.warn('Speech recognition error:', err.message);
-        setLiveTranscript('');
-        assistantModeRef.current = 'idle';
-        setAssistantMode('idle');
+        // Silence (or a mic error) is what actually ends the conversation
+        // now -- not the camera losing the face. Clearing this and nudging
+        // the greet queue lets a genuinely new visitor get recognized and
+        // greeted right away instead of waiting on the next passive scan.
+        endConversationCleanly();
+      },
+      onEnd: () => {
+        if (!handled) endConversationCleanly();
       },
     });
   };
@@ -1717,7 +1826,8 @@ useEffect(() => {
       // announce=false: saying "Hi Trix"/"Hello Trix"/"Trix" is the person
       // already asking for her attention, so she should start listening the
       // instant the wake word is heard instead of talking first.
-      startListeningRef.current(activeGreeting?.name ?? null, false);
+      const name = activeGreeting?.name ?? null;
+      startListeningRef.current(name, false, keyForPerson(name, activeGreeting?.title ?? null));
     },
     onError: (err) => console.warn('Wake-word listener error:', err.message),
   });
@@ -1751,7 +1861,7 @@ useEffect(() => {
 
       for (const face of faces) {
         const match = knownFaces.length > 0 ? matchFace(face.descriptor, knownFaces) : null;
-        const key = match ? `${match.name}::${match.title ?? ''}` : UNKNOWN_KEY;
+        const key = keyForPerson(match?.name ?? null, match?.title ?? null);
         seenThisScan.add(key);
 
         const entry = candidateStreakRef.current.get(key) || { score: 0, misses: 0 };
@@ -1833,6 +1943,7 @@ useEffect(() => {
         }
         return DEFAULT_GREETING;
       }
+      if (isScanning) return 'Scanning...';
       return 'Welcome!';
     }
     if (isAwake) return 'Still here...';
@@ -1879,10 +1990,11 @@ useEffect(() => {
           isSpeaking={isSpeaking}
           eyeOffset={eyeOffset}
           isBlinking={isBlinking}
+          isScanning={isScanning}
         />
       </div>
 
-      <div className="robot-message">{renderMessage()}</div>
+      <div className={`robot-message ${isScanning ? 'scanning-text' : ''}`}>{renderMessage()}</div>
 
 {isSpeaking && spokenText && (
   <div className="robot-subtitle speaking-subtitle">
@@ -1900,9 +2012,9 @@ useEffect(() => {
   </div>
 )}
 {!isSpeaking && assistantMode === 'thinking' && (
-  <div className="robot-subtitle">ðŸ’­ Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
+  <div className="robot-subtitle">ðŸ’­Â­ Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
 )}
-      {/* Bottom badge showing the currently-greeted person's title/role.Ã°Å¸â€™Â­
+      {/* Bottom badge showing the currently-greeted person's title/role.ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â­
           Suppressed while she's speaking so it never stacks under the
           speaking-subtitle above (that was the other half of the
           "double subtitle" bug -- two blue blocks rendering at once). */}
@@ -1916,7 +2028,9 @@ useEffect(() => {
         ) : !introFinished ? (
           <span>Saying hello</span>
         ) : (
-          <span>{isFaceDetected ? 'Face detected' : 'No face detected'}</span>
+          <span>
+            {isFaceDetected ? (isScanning ? 'Scanning face...' : 'Face detected') : 'No face detected'}
+          </span>
         )}
       </div>
 
@@ -2159,6 +2273,97 @@ body {
   transform: scaleY(0.08) !important;
 }
 
+
+/* --- Face-recognition scanning state --- */
+/* Eyes switch to a distinct "working on it" color (green-cyan) instead of
+   the normal happy blue, and gently pulse -- gives clear, ambient feedback
+   that recognition is actively in progress without needing to interrupt
+   with a popup or freeze her expression. */
+.eye-unit.scanning .eye-white {
+  stroke: #29ffb0;
+  animation: scanEyeGlow 1.1s ease-in-out infinite;
+}
+
+.eye-unit.scanning .pupil {
+  fill: #29ffb0;
+  animation: scanPupilGlow 1.1s ease-in-out infinite;
+}
+
+.eye-unit.scanning .pupil-shine {
+  fill: #eafff5;
+}
+
+@keyframes scanEyeGlow {
+  0%, 100% {
+    stroke-width: 3;
+    filter: drop-shadow(0 0 2px rgba(41, 255, 176, 0.6));
+  }
+  50% {
+    stroke-width: 4.5;
+    filter: drop-shadow(0 0 9px rgba(41, 255, 176, 0.9));
+  }
+}
+
+@keyframes scanPupilGlow {
+  0%, 100% { filter: drop-shadow(0 0 1px rgba(41, 255, 176, 0.5)); }
+  50% { filter: drop-shadow(0 0 6px rgba(41, 255, 176, 0.9)); }
+}
+
+/* Overlay group is clipped (via #faceClip in the SVG) to the rounded face
+   "screen" shape only -- the sweep never bleeds onto the white outer shell. */
+.scan-overlay {
+  pointer-events: none;
+}
+
+/* Faint tint across the whole face that breathes gently, so the face reads
+   as "actively scanning" even between line sweeps. */
+.scan-tint {
+  fill: rgba(41, 255, 176, 0.05);
+  animation: scanTintPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes scanTintPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* The actual scan lines -- three horizontal strokes sweeping bottom-to-top
+   in a continuous loop, staggered so it reads as a smooth radar-style pass
+   rather than three lines ticking in lockstep. */
+.scan-line {
+  stroke: #29ffb0;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 3px #29ffb0) drop-shadow(0 0 7px rgba(41, 255, 176, 0.6));
+  animation: scanLineSweep 2.2s linear infinite;
+}
+
+.scan-line.line2 {
+  animation-delay: -0.73s;
+  opacity: 0.65;
+}
+
+.scan-line.line3 {
+  animation-delay: -1.46s;
+  opacity: 0.4;
+}
+
+@keyframes scanLineSweep {
+  0% { transform: translateY(150px); opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { transform: translateY(-10px); opacity: 0; }
+}
+
+/* Gentle pulse on the "Scanning..." status text, echoing the eye glow */
+.robot-message.scanning-text {
+  color: #29ffb0;
+  animation: scanTextPulse 1.1s ease-in-out infinite;
+}
+
+@keyframes scanTextPulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
 
 /* Mouth container glides with the face, plus a subtle idle sway */
 .mouth-unit {
