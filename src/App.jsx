@@ -54,6 +54,10 @@ const RECOGNITION_DROP_AFTER_MISSES = 6;
 // on screen before handing off to the next person in the queue.
 const GREET_DISPLAY_HOLD_MS = 1200;
 const UNKNOWN_KEY = 'UNKNOWN_VISITOR';
+// Same identity-key scheme scanFaces uses, shared so the active conversation
+// can check "is the person I'm talking to still the one in frame?" against
+// the exact same keys candidateStreakRef tracks.
+const keyForPerson = (name, title) => (name ? `${name}::${title ?? ''}` : UNKNOWN_KEY);
 
 // Eye-tracking tuning
 const MAX_PUPIL_OFFSET_X = 22;
@@ -153,6 +157,13 @@ function App() {
   // removed from this set once they've actually left frame (dropped from
   // candidateStreakRef), at which point the cooldown timer takes back over.
   const greetedPresentRef = useRef(new Set());
+  // The identity-key (see keyForPerson) of whoever the CURRENT conversation
+  // is with. Used after each answer to check "is this still the same
+  // person in frame?" before looping back to listen for a follow-up --
+  // instead of the old check ("is *a* face detected?"), which kept
+  // conversing with a name that had already walked off, and blocked face
+  // recognition from ever greeting whoever replaced them.
+  const activePersonKeyRef = useRef(null);
 
   // Mirrors state into refs so async callbacks (speech/recognition events)
   // always read the latest value instead of a stale closure.
@@ -227,11 +238,15 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
 
   useEffect(() => { isFaceDetectedRef.current = isFaceDetected; }, [isFaceDetected]);
 
-  // Stay "awake" as long as a face is present or she's speaking. Once both
-  // go false, wait SLEEP_GRACE_MS of continued inactivity before sleeping --
-  // any face/speech activity during that window cancels the countdown.
+  // Stay "awake" as long as a face is present, she's speaking, or she's
+  // actively mid-conversation (listening/thinking) -- that last one matters
+  // now that a conversation keeps going by voice alone even with no face in
+  // frame, so she shouldn't visually doze off while still listening for a
+  // follow-up. Once all three go false, wait SLEEP_GRACE_MS of continued
+  // inactivity before sleeping -- any activity during that window cancels
+  // the countdown.
   useEffect(() => {
-    const activelyAwake = isFaceDetected || isSpeaking;
+    const activelyAwake = isFaceDetected || isSpeaking || assistantMode !== 'idle';
 
     if (activelyAwake) {
       if (sleepTimeoutRef.current) {
@@ -245,7 +260,7 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
         sleepTimeoutRef.current = null;
       }, SLEEP_GRACE_MS);
     }
-  }, [isFaceDetected, isSpeaking]);
+  }, [isFaceDetected, isSpeaking, assistantMode]);
 
   // Clear any pending sleep timer on unmount
   useEffect(() => {
@@ -343,11 +358,16 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
     setActiveGreeting(null);
     processGreetQueue();
     if (!greetQueueRef.current.length) {
-      startListeningRef.current(next.name);
+      startListeningRef.current(next.name, true, next.key);
     }
   }, GREET_DISPLAY_HOLD_MS);
 });
   }, [speakText]);
+
+  const processGreetQueueRef = useRef(() => {});
+  useEffect(() => {
+    processGreetQueueRef.current = processGreetQueue;
+  }, [processGreetQueue]);
 
   const checkMotion = useCallback((video) => {
     const canvas = canvasRef.current;
@@ -448,10 +468,14 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // so the person knows Trix is actually listening for their question).
   // announce=false skips straight to listening, used when we're already
   // mid-conversation and looping back for a follow-up question.
-  const startListening = useCallback((personName, announce = true) => {
+  // personKey identifies WHO this conversation is with (see keyForPerson) --
+  // used to detect when that specific person has walked off, rather than
+  // just checking whether *some* face is still in frame.
+  const startListening = useCallback((personName, announce = true, personKey = null) => {
   if (!isSpeechRecognitionSupported()) return;
   if (assistantModeRef.current !== 'idle') return; // already mid-conversation, ignore
   assistantModeRef.current = 'listening';
+  activePersonKeyRef.current = personKey;
   stopWakeWordRef.current?.(); // never run wake-word + question listeners at once
   stopWakeWordRef.current = null;
 
@@ -460,12 +484,30 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
     setLastQuestion('');
     setLiveTranscript('');
 
+    // Some browsers end a SpeechRecognition session on silence without
+    // firing onerror OR onresult -- just onend. Relying only on onerror to
+    // reset assistantMode back to 'idle' left it stuck on 'listening'
+    // forever in that case, which meant she'd never sleep (isAwake depends
+    // on assistantMode !== 'idle') and could never start a new greeting or
+    // conversation again (both are gated on assistantMode === 'idle').
+    // `handled` tracks whether onResult/onError already dealt with it, so
+    // onEnd only needs to act as a fallback for the case neither did.
+    let handled = false;
+    const endConversationCleanly = () => {
+      setLiveTranscript('');
+      assistantModeRef.current = 'idle';
+      setAssistantMode('idle');
+      activePersonKeyRef.current = null;
+      processGreetQueueRef.current?.();
+    };
+
     listenOnce({
       timeoutMs: 8000,
       // Streams what the person is saying to the screen live, word by
       // word, the same way Gemini/ChatGPT/etc. show your speech as you talk.
       onInterim: (partial) => setLiveTranscript(partial),
       onResult: async (transcript) => {
+        handled = true;
         setLiveTranscript('');
         setLastQuestion(transcript);
         assistantModeRef.current = 'thinking';
@@ -482,23 +524,36 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
           speakText(answer, () => {
             assistantModeRef.current = 'idle';
             setAssistantMode('idle');
-            // Keep the conversation going without re-asking "how can I
-            // help" every single turn -- only the first turn announces.
-            if (isFaceDetectedRef.current) startListening(personName, false);
+            // Keep listening for a follow-up regardless of whether the
+            // camera still sees a face -- someone can easily talk from
+            // just outside the frame, and hearing them matters more here
+            // than seeing them. The conversation only actually ends when
+            // the mic hears silence (the onError/onEnd fallback below),
+            // which is what frees things up for face recognition to greet
+            // whoever (if anyone) is in frame next.
+            startListening(personName, false, personKey);
           });
         } catch (err) {
           console.error('AI error:', err);
           speakText("Sorry, I'm having trouble thinking right now.", () => {
             assistantModeRef.current = 'idle';
             setAssistantMode('idle');
+            activePersonKeyRef.current = null;
+            processGreetQueueRef.current?.();
           });
         }
       },
       onError: (err) => {
+        handled = true;
         console.warn('Speech recognition error:', err.message);
-        setLiveTranscript('');
-        assistantModeRef.current = 'idle';
-        setAssistantMode('idle');
+        // Silence (or a mic error) is what actually ends the conversation
+        // now -- not the camera losing the face. Clearing this and nudging
+        // the greet queue lets a genuinely new visitor get recognized and
+        // greeted right away instead of waiting on the next passive scan.
+        endConversationCleanly();
+      },
+      onEnd: () => {
+        if (!handled) endConversationCleanly();
       },
     });
   };
@@ -537,7 +592,8 @@ useEffect(() => {
       // announce=false: saying "Hi Trix"/"Hello Trix"/"Trix" is the person
       // already asking for her attention, so she should start listening the
       // instant the wake word is heard instead of talking first.
-      startListeningRef.current(activeGreeting?.name ?? null, false);
+      const name = activeGreeting?.name ?? null;
+      startListeningRef.current(name, false, keyForPerson(name, activeGreeting?.title ?? null));
     },
     onError: (err) => console.warn('Wake-word listener error:', err.message),
   });
@@ -571,7 +627,7 @@ useEffect(() => {
 
       for (const face of faces) {
         const match = knownFaces.length > 0 ? matchFace(face.descriptor, knownFaces) : null;
-        const key = match ? `${match.name}::${match.title ?? ''}` : UNKNOWN_KEY;
+        const key = keyForPerson(match?.name ?? null, match?.title ?? null);
         seenThisScan.add(key);
 
         const entry = candidateStreakRef.current.get(key) || { score: 0, misses: 0 };

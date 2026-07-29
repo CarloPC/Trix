@@ -1326,6 +1326,13 @@ function App() {
   const activeGreetRef = useRef(null); // entry currently being greeted, if any
   const candidateStreakRef = useRef(new Map()); // key -> { score, misses } (see RECOGNITION_* constants)
   const lastGreetedAtRef = useRef(new Map()); // key -> timestamp last greeted
+  // Keys already greeted who are still continuously in frame. Distinct from
+  // the time-based cooldown below: this is what stops someone from being
+  // re-greeted mid-conversation just because RE_GREET_COOLDOWN_MS elapsed
+  // while they were still standing there talking to her. A key is only
+  // removed from this set once they've actually left frame (dropped from
+  // candidateStreakRef), at which point the cooldown timer takes back over.
+  const greetedPresentRef = useRef(new Set());
 
   // Mirrors state into refs so async callbacks (speech/recognition events)
   // always read the latest value instead of a stale closure.
@@ -1489,11 +1496,18 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // matter how many are queued up.
   const processGreetQueue = useCallback(() => {
     if (activeGreetRef.current) return;
+    // Never start a greeting while a question/answer is in progress --
+    // speakText() calls speechSynthesis.cancel() first, which would cut
+    // Trix off mid-sentence while she's answering someone. Leave the
+    // queue as-is; scanFaces re-calls this every ~350ms, so it resumes
+    // the moment the conversation goes back to idle.
+    if (assistantModeRef.current !== 'idle') return;
     const next = greetQueueRef.current.shift();
     if (!next) return;
 
     activeGreetRef.current = next;
     lastGreetedAtRef.current.set(next.key, Date.now());
+    greetedPresentRef.current.add(next.key);
     setActiveGreeting({ name: next.name, title: next.title });
 
     const text = next.name
@@ -1583,6 +1597,7 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
           greetQueueRef.current = [];
           queuedKeysRef.current = new Set();
           candidateStreakRef.current = new Map();
+          greetedPresentRef.current = new Set();
           activeGreetRef.current = null;
           setActiveGreeting(null);
         }
@@ -1749,10 +1764,11 @@ useEffect(() => {
           : RECOGNITION_CONFIRM_HITS_UNKNOWN;
         const confirmed = entry.score >= requiredHits;
         const alreadyPending = queuedKeysRef.current.has(key);
+        const alreadyGreetedWhilePresent = greetedPresentRef.current.has(key);
         const cooldownElapsed =
           now - (lastGreetedAtRef.current.get(key) || 0) > RE_GREET_COOLDOWN_MS;
 
-        if (confirmed && cooldownElapsed && !alreadyPending) {
+        if (confirmed && cooldownElapsed && !alreadyPending && !alreadyGreetedWhilePresent) {
           greetQueueRef.current.push({
             key,
             name: match ? match.name : null,
@@ -1777,6 +1793,9 @@ useEffect(() => {
         entry.score = Math.max(0, entry.score - RECOGNITION_MISS_PENALTY);
         if (entry.misses >= RECOGNITION_DROP_AFTER_MISSES || entry.score <= 0) {
           candidateStreakRef.current.delete(key);
+          // They've genuinely left frame -- allow a fresh greeting if/when
+          // they (or anyone else matching this key) come back.
+          greetedPresentRef.current.delete(key);
         }
       }
 
