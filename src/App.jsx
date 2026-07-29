@@ -1,5 +1,5 @@
+import { listenOnce, listenForWakeWord, isSpeechRecognitionSupported } from './lib/voiceInput';
 import { askAI } from './lib/aiChat';
-import { listenOnce, isSpeechRecognitionSupported } from './lib/voiceInput';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import * as tf from '@tensorflow/tfjs';
@@ -18,6 +18,7 @@ const MISS_TOLERANCE = 5;
 const ROBOT_NAME = 'Trix';
 const INTRO_GREETING = `Hi there! I'm ${ROBOT_NAME}, your friendly robot assistant. Nice to meet you!`;
 const DEFAULT_GREETING = 'Welcome, visitor!';
+const HELP_PROMPT = 'How can I help you today?';
 // How long, per person (or per "unknown visitor"), before we're willing to
 // greet them again if they're still lingering in frame.
 const RE_GREET_COOLDOWN_MS = 15000;
@@ -145,11 +146,32 @@ function App() {
   const activeGreetRef = useRef(null); // entry currently being greeted, if any
   const candidateStreakRef = useRef(new Map()); // key -> { score, misses } (see RECOGNITION_* constants)
   const lastGreetedAtRef = useRef(new Map()); // key -> timestamp last greeted
+  // Keys already greeted who are still continuously in frame. Distinct from
+  // the time-based cooldown below: this is what stops someone from being
+  // re-greeted mid-conversation just because RE_GREET_COOLDOWN_MS elapsed
+  // while they were still standing there talking to her. A key is only
+  // removed from this set once they've actually left frame (dropped from
+  // candidateStreakRef), at which point the cooldown timer takes back over.
+  const greetedPresentRef = useRef(new Set());
+
+  // Mirrors state into refs so async callbacks (speech/recognition events)
+  // always read the latest value instead of a stale closure.
+  const isFaceDetectedRef = useRef(false);
+  const assistantModeRef = useRef('idle');
+  // Holds the latest startListening/stopWakeWord functions so effects and
+  // callbacks defined earlier in the component can still invoke the
+  // up-to-date version without needing to be re-created themselves.
+  const startListeningRef = useRef(() => {});
+  const stopWakeWordRef = useRef(null);
 
   // FOR AI CHAT
   const [assistantMode, setAssistantMode] = useState('idle'); // idle | listening | thinking
   const [lastQuestion, setLastQuestion] = useState('');
   const [lastAnswer, setLastAnswer] = useState('');
+  // Live partial transcript, updated word-by-word while the person is still
+  // talking (before the utterance is final) -- shown on screen the same way
+  // Gemini/ChatGPT/etc. stream your words back to you as you speak.
+  const [liveTranscript, setLiveTranscript] = useState('');
   const conversationHistoryRef = useRef([]); // short rolling memory per session
 
   const [isModelLoading, setIsModelLoading] = useState(true);
@@ -165,7 +187,8 @@ function App() {
   const [hasStarted, setHasStarted] = useState(false);
   const [introFinished, setIntroFinished] = useState(false);
   const [isAwake, setIsAwake] = useState(false);
-  
+  const [spokenText, setSpokenText] = useState('');
+const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // Load BlazeFace (presence/wake detection + eye tracking)
   useEffect(() => {
     const loadModel = async () => {
@@ -201,6 +224,8 @@ function App() {
       window.speechSynthesis.onvoiceschanged = null;
     };
   }, []);
+
+  useEffect(() => { isFaceDetectedRef.current = isFaceDetected; }, [isFaceDetected]);
 
   // Stay "awake" as long as a face is present or she's speaking. Once both
   // go false, wait SLEEP_GRACE_MS of continued inactivity before sleeping --
@@ -247,42 +272,62 @@ function App() {
   }, [isAwake]);
 
   const speakText = useCallback((text, onEnd) => {
-    if (!('speechSynthesis' in window)) {
-      onEnd?.();
-      return;
+  if (!('speechSynthesis' in window)) {
+    onEnd?.();
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voices = window.speechSynthesis.getVoices();
+  const preferredVoice =
+    voices.find((v) => /en-US|en_US/i.test(v.lang) && /female|Zira|Samantha|Google US/i.test(v.name)) ||
+    voices.find((v) => /en/i.test(v.lang));
+  if (preferredVoice) utterance.voice = preferredVoice;
+  utterance.rate = 1;
+  utterance.pitch = 1.1;
+  utterance.onstart = () => {
+    setIsSpeaking(true);
+    setSpokenText(text);        // <-- shows the subtitle the instant she starts, not after
+    setSpokenWordIndex(-1);
+  };
+  utterance.onboundary = (event) => {
+    if (event.name === 'word') {
+      const upTo = text.slice(0, event.charIndex).trim();
+      setSpokenWordIndex(upTo ? upTo.split(/\s+/).length : 0);
     }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice =
-      voices.find((v) => /en-US|en_US/i.test(v.lang) && /female|Zira|Samantha|Google US/i.test(v.name)) ||
-      voices.find((v) => /en/i.test(v.lang));
-    if (preferredVoice) utterance.voice = preferredVoice;
-    utterance.rate = 1;
-    utterance.pitch = 1.1;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      onEnd?.();
-    };
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      onEnd?.();
-    };
-    window.speechSynthesis.speak(utterance);
-  }, []);
-
+  };
+  utterance.onend = () => {
+    setIsSpeaking(false);
+    setSpokenText('');
+    setSpokenWordIndex(-1);
+    onEnd?.();
+  };
+  utterance.onerror = () => {
+    setIsSpeaking(false);
+    setSpokenText('');
+    setSpokenWordIndex(-1);
+    onEnd?.();
+  };
+  window.speechSynthesis.speak(utterance);
+}, []);
   // Pulls the next pending greeting off the queue (if nobody's currently
   // being greeted) and speaks it. Recurses via speakText's onEnd once the
   // hold period passes, so people are greeted strictly one at a time no
   // matter how many are queued up.
   const processGreetQueue = useCallback(() => {
     if (activeGreetRef.current) return;
+    // Never start a greeting while a question/answer is in progress --
+    // speakText() calls speechSynthesis.cancel() first, which would cut
+    // Trix off mid-sentence while she's answering someone. Leave the
+    // queue as-is; scanFaces re-calls this every ~350ms, so it resumes
+    // the moment the conversation goes back to idle.
+    if (assistantModeRef.current !== 'idle') return;
     const next = greetQueueRef.current.shift();
     if (!next) return;
 
     activeGreetRef.current = next;
     lastGreetedAtRef.current.set(next.key, Date.now());
+    greetedPresentRef.current.add(next.key);
     setActiveGreeting({ name: next.name, title: next.title });
 
     const text = next.name
@@ -297,9 +342,8 @@ function App() {
     activeGreetRef.current = null;
     setActiveGreeting(null);
     processGreetQueue();
-    // Nobody else queued up? Open the floor for questions.
     if (!greetQueueRef.current.length) {
-      startListening(next.name);
+      startListeningRef.current(next.name);
     }
   }, GREET_DISPLAY_HOLD_MS);
 });
@@ -373,6 +417,7 @@ function App() {
           greetQueueRef.current = [];
           queuedKeysRef.current = new Set();
           candidateStreakRef.current = new Map();
+          greetedPresentRef.current = new Set();
           activeGreetRef.current = null;
           setActiveGreeting(null);
         }
@@ -398,43 +443,110 @@ function App() {
     setHasStarted(true);
     speakText(INTRO_GREETING, () => setIntroFinished(true));
   }, [speakText]);
-  const startListening = useCallback((personName) => {
+  // announce=true speaks the "How can I help you today?" prompt before
+  // opening the mic (used right after a greeting, and after a wake word --
+  // so the person knows Trix is actually listening for their question).
+  // announce=false skips straight to listening, used when we're already
+  // mid-conversation and looping back for a follow-up question.
+  const startListening = useCallback((personName, announce = true) => {
   if (!isSpeechRecognitionSupported()) return;
-  setAssistantMode('listening');
-  setLastQuestion('');
+  if (assistantModeRef.current !== 'idle') return; // already mid-conversation, ignore
+  assistantModeRef.current = 'listening';
+  stopWakeWordRef.current?.(); // never run wake-word + question listeners at once
+  stopWakeWordRef.current = null;
 
-  listenOnce({
-    timeoutMs: 8000,
-    onResult: async (transcript) => {
-      setLastQuestion(transcript);
-      setAssistantMode('thinking');
-      try {
-        const answer = await askAI(transcript, conversationHistoryRef.current, personName);
-        conversationHistoryRef.current = [
-          ...conversationHistoryRef.current,
-          { role: 'user', content: transcript },
-          { role: 'assistant', content: answer },
-        ].slice(-8); // keep memory short
+  const beginListening = () => {
+    setAssistantMode('listening');
+    setLastQuestion('');
+    setLiveTranscript('');
 
-        setLastAnswer(answer);
-        speakText(answer, () => {
-          setAssistantMode('idle');
-          // Still there? Keep the conversation going.
-          if (isFaceDetected) startListening(personName);
-        });
-      } catch (err) {
-        console.error('AI error:', err);
-        speakText("Sorry, I'm having trouble thinking right now.", () =>
-          setAssistantMode('idle')
-        );
-      }
+    listenOnce({
+      timeoutMs: 8000,
+      // Streams what the person is saying to the screen live, word by
+      // word, the same way Gemini/ChatGPT/etc. show your speech as you talk.
+      onInterim: (partial) => setLiveTranscript(partial),
+      onResult: async (transcript) => {
+        setLiveTranscript('');
+        setLastQuestion(transcript);
+        assistantModeRef.current = 'thinking';
+        setAssistantMode('thinking');
+        try {
+          const answer = await askAI(transcript, conversationHistoryRef.current, personName);
+          conversationHistoryRef.current = [
+            ...conversationHistoryRef.current,
+            { role: 'user', content: transcript },
+            { role: 'assistant', content: answer },
+          ].slice(-8);
+
+          setLastAnswer(answer);
+          speakText(answer, () => {
+            assistantModeRef.current = 'idle';
+            setAssistantMode('idle');
+            // Keep the conversation going without re-asking "how can I
+            // help" every single turn -- only the first turn announces.
+            if (isFaceDetectedRef.current) startListening(personName, false);
+          });
+        } catch (err) {
+          console.error('AI error:', err);
+          speakText("Sorry, I'm having trouble thinking right now.", () => {
+            assistantModeRef.current = 'idle';
+            setAssistantMode('idle');
+          });
+        }
+      },
+      onError: (err) => {
+        console.warn('Speech recognition error:', err.message);
+        setLiveTranscript('');
+        assistantModeRef.current = 'idle';
+        setAssistantMode('idle');
+      },
+    });
+  };
+
+  if (announce) {
+    speakText(HELP_PROMPT, beginListening);
+  } else {
+    beginListening();
+  }
+}, [speakText]);
+
+useEffect(() => {
+  startListeningRef.current = startListening;
+}, [startListening]);
+
+  // Background wake-word listener. Only runs when she's awake, idle (not
+// already mid-greeting/conversation), and not talking herself -- otherwise
+// she could hear her own voice through the mic and re-trigger herself.
+useEffect(() => {
+  const canListenForWake =
+    hasStarted &&
+    introFinished &&
+    isSpeechRecognitionSupported() &&
+    isAwake &&
+    !isSpeaking &&
+    assistantMode === 'idle';
+
+  if (!canListenForWake) return;
+
+  stopWakeWordRef.current = listenForWakeWord({
+    // Matches "Trix", "Hi Trix", "Hello Trix", etc., plus common
+    // speech-to-text mishearings of the name (e.g. "tricks").
+    wakeWords: ['trix', 'tricks', 'trick', 'trish', 'tris'],
+    onWake: () => {
+      stopWakeWordRef.current = null;
+      // announce=false: saying "Hi Trix"/"Hello Trix"/"Trix" is the person
+      // already asking for her attention, so she should start listening the
+      // instant the wake word is heard instead of talking first.
+      startListeningRef.current(activeGreeting?.name ?? null, false);
     },
-    onError: (err) => {
-      console.warn('Speech recognition error:', err.message);
-      setAssistantMode('idle');
-    },
+    onError: (err) => console.warn('Wake-word listener error:', err.message),
   });
-}, [speakText, isFaceDetected]);
+
+  return () => {
+    stopWakeWordRef.current?.();
+    stopWakeWordRef.current = null;
+  };
+}, [hasStarted, introFinished, isAwake, isSpeaking, assistantMode, activeGreeting]);
 
   // Scans every face currently in frame (not just the closest one) and
   // queues up a greeting for each newly-confirmed identity. Runs on its own
@@ -472,10 +584,11 @@ function App() {
           : RECOGNITION_CONFIRM_HITS_UNKNOWN;
         const confirmed = entry.score >= requiredHits;
         const alreadyPending = queuedKeysRef.current.has(key);
+        const alreadyGreetedWhilePresent = greetedPresentRef.current.has(key);
         const cooldownElapsed =
           now - (lastGreetedAtRef.current.get(key) || 0) > RE_GREET_COOLDOWN_MS;
 
-        if (confirmed && cooldownElapsed && !alreadyPending) {
+        if (confirmed && cooldownElapsed && !alreadyPending && !alreadyGreetedWhilePresent) {
           greetQueueRef.current.push({
             key,
             name: match ? match.name : null,
@@ -500,6 +613,9 @@ function App() {
         entry.score = Math.max(0, entry.score - RECOGNITION_MISS_PENALTY);
         if (entry.misses >= RECOGNITION_DROP_AFTER_MISSES || entry.score <= 0) {
           candidateStreakRef.current.delete(key);
+          // They've genuinely left frame -- allow a fresh greeting if/when
+          // they (or anyone else matching this key) come back.
+          greetedPresentRef.current.delete(key);
         }
       }
 
@@ -522,6 +638,11 @@ function App() {
 
   const renderMessage = () => {
     if (isModelLoading) return 'Waking up brain...';
+    // While she's actually talking, the blue speaking-subtitle below already
+    // shows the exact sentence (with live word highlighting). Showing it a
+    // second time here in white was the "double subtitle" bug -- so during
+    // speech this just shows a short, non-duplicated status instead.
+    if (isSpeaking) return 'Speaking...';
     if (isFaceDetected) {
       if (activeGreeting) {
         if (activeGreeting.name) {
@@ -534,7 +655,6 @@ function App() {
       }
       return 'Welcome!';
     }
-    if (isSpeaking) return INTRO_GREETING;
     if (isAwake) return 'Still here...';
     return 'Zzz...';
   };
@@ -583,13 +703,30 @@ function App() {
       </div>
 
       <div className="robot-message">{renderMessage()}</div>
-      {assistantMode === 'listening' && <div className="robot-subtitle">🎤 Listening...</div>}
-{assistantMode === 'thinking' && <div className="robot-subtitle">💭 Thinking...</div>}
-{lastAnswer && assistantMode === 'idle' && (
-  <div className="robot-subtitle">{lastAnswer}</div>
+
+{isSpeaking && spokenText && (
+  <div className="robot-subtitle speaking-subtitle">
+    {spokenText.split(/\s+/).map((word, i) => (
+      <span key={i} className={i === spokenWordIndex ? 'word-active' : ''}>
+        {word}{' '}
+      </span>
+    ))}
+  </div>
 )}
-      {/* Bottom badge showing the currently-greeted person's title/role */}
-      {isFaceDetected && activeGreeting?.title && (
+{!isSpeaking && assistantMode === 'listening' && (
+  <div className="robot-subtitle listening-subtitle">
+    🎙️ Listening...
+    {liveTranscript && <div className="live-transcript">{liveTranscript}</div>}
+  </div>
+)}
+{!isSpeaking && assistantMode === 'thinking' && (
+  <div className="robot-subtitle">💭 Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
+)}
+      {/* Bottom badge showing the currently-greeted person's title/role.ðŸ’­
+          Suppressed while she's speaking so it never stacks under the
+          speaking-subtitle above (that was the other half of the
+          "double subtitle" bug -- two blue blocks rendering at once). */}
+      {!isSpeaking && isFaceDetected && activeGreeting?.title && (
         <div className="robot-subtitle">{activeGreeting.title}</div>
       )}
 
