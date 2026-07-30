@@ -392,7 +392,23 @@ export function listenOnce({ onStart, onInterim, onResult, onError, onEnd, timeo
 // just because the engine transcribed the name slightly wrong.
 const DEFAULT_WAKE_WORDS = ['trix', 'tricks', 'trick', 'trish', 'tris'];
 
-export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onError }) {
+// Phrases that force an immediate face-scan + greeting cycle, no matter what
+// Trix is currently doing. Matched the same way wake words are (lowercase
+// substring), so "Can you do an initiate face scan" still triggers it.
+export const DEFAULT_FACE_SCAN_COMMANDS = ['initiate face scan', 'initiate scan', 'face scan'];
+
+// commandPhrases/onCommand ride along on the SAME recognition session as the
+// wake word (rather than a second listener), since only one SpeechRecognition
+// can safely run at a time -- see the "already started" note below. Command
+// phrases are checked first each result, so if a phrase happens to also
+// contain a wake word, the command still wins.
+export function listenForWakeWord({
+  wakeWords = DEFAULT_WAKE_WORDS,
+  commandPhrases = DEFAULT_FACE_SCAN_COMMANDS,
+  onWake,
+  onCommand,
+  onError,
+}) {
   if (!SpeechRecognitionImpl) {
     onError?.(new Error('Speech recognition is not supported in this browser.'));
     return () => {};
@@ -404,8 +420,15 @@ export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onEr
     return normalizedWakeWords.some((w) => lower.includes(w));
   };
 
+  const normalizedCommandPhrases = commandPhrases.map((p) => p.toLowerCase());
+  const matchedCommandPhrase = (text) => {
+    const lower = text.toLowerCase();
+    return normalizedCommandPhrases.find((p) => lower.includes(p)) || null;
+  };
+
   let stopped = false;
-  let woke = false;
+  let woke = false; // false | 'wake' | 'command'
+  let wokeCommandPhrase = null;
   let recognition = null;
 
   const start = () => {
@@ -418,6 +441,16 @@ export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onEr
     recognition.onresult = (event) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
+        const command = matchedCommandPhrase(transcript);
+        if (command) {
+          // Same handoff-race note as below: don't fire onCommand until
+          // onend confirms the mic session is actually torn down.
+          stopped = true;
+          woke = 'command';
+          wokeCommandPhrase = command;
+          recognition.stop();
+          return;
+        }
         if (containsWakeWord(transcript)) {
           // Don't fire onWake yet -- stop() is async and the mic session
           // isn't actually released until onend fires below. Starting a
@@ -425,7 +458,7 @@ export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onEr
           // happens throws "already started" in Chrome, which was silently
           // swallowing every question asked right after the wake word.
           stopped = true;
-          woke = true;
+          woke = 'wake';
           recognition.stop();
           return;
         }
@@ -443,7 +476,14 @@ export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onEr
     recognition.onend = () => {
       // Browsers silently end long "continuous" sessions after a while --
       // restart automatically unless we've been told to stop.
-      if (woke) {
+      if (woke === 'command') {
+        const phrase = wokeCommandPhrase;
+        woke = false;
+        wokeCommandPhrase = null;
+        onCommand?.(phrase); // mic is now actually free -- safe to start listenOnce()
+        return;
+      }
+      if (woke === 'wake') {
         woke = false;
         onWake?.(); // mic is now actually free -- safe to start listenOnce()
         return;
@@ -1191,7 +1231,12 @@ export default AdminPage;
 
 
 /// FILE: App.jsx ///
-import { listenOnce, listenForWakeWord, isSpeechRecognitionSupported } from './lib/voiceInput';
+import {
+  listenOnce,
+  listenForWakeWord,
+  isSpeechRecognitionSupported,
+  DEFAULT_FACE_SCAN_COMMANDS,
+} from './lib/voiceInput';
 import { askAI } from './lib/aiChat';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
@@ -1247,6 +1292,26 @@ const RECOGNITION_DROP_AFTER_MISSES = 6;
 // on screen before handing off to the next person in the queue.
 const GREET_DISPLAY_HOLD_MS = 300;
 const UNKNOWN_KEY = 'UNKNOWN_VISITOR';
+// Voice command that forces an immediate face-scan + greeting cycle, no
+// matter what Trix is currently doing (idle, mid-conversation, mid-greeting,
+// asleep). "Initiate Face Scan", "Initiate Scan", "Face Scan".
+const FACE_SCAN_COMMANDS = DEFAULT_FACE_SCAN_COMMANDS;
+// Voice command that opens the face-enrollment page. "Initiate Face
+// Registration", "Initiate Register".
+const REGISTRATION_COMMANDS = ['initiate face registration', 'initiate register'];
+const REGISTRATION_PATH = '/admin/register';
+// How long to hold the forced "scanning" look if the command is heard but
+// nobody ever steps into frame to be recognized -- otherwise she'd be stuck
+// looking like she's scanning forever.
+const FORCED_SCAN_TIMEOUT_MS = 20000;
+const isFaceScanCommand = (text) => {
+  const lower = text.trim().toLowerCase();
+  return FACE_SCAN_COMMANDS.some((phrase) => lower.includes(phrase));
+};
+const isRegistrationCommand = (text) => {
+  const lower = text.trim().toLowerCase();
+  return REGISTRATION_COMMANDS.some((phrase) => lower.includes(phrase));
+};
 // Same identity-key scheme scanFaces uses, shared so the active conversation
 // can check "is the person I'm talking to still the one in frame?" against
 // the exact same keys candidateStreakRef tracks.
@@ -1387,6 +1452,15 @@ function App() {
   // up-to-date version without needing to be re-created themselves.
   const startListeningRef = useRef(() => {});
   const stopWakeWordRef = useRef(null);
+  // cancel() returned by the in-progress listenOnce() Q&A session (if any),
+  // so the face-scan command can cut it off immediately instead of waiting
+  // for silence/timeout.
+  const activeListenCancelRef = useRef(null);
+  // Lets callbacks defined earlier (startListening, the wake-word handler)
+  // call the force-scan handler defined later without a stale closure.
+  const triggerFaceScanCommandRef = useRef(() => {});
+  const triggerRegistrationCommandRef = useRef(() => {});
+  const forcedScanTimeoutRef = useRef(null);
 
   // FOR AI CHAT
   const [assistantMode, setAssistantMode] = useState('idle'); // idle | listening | thinking
@@ -1420,6 +1494,12 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // camera during recognition feels intentional rather than like a silent,
   // awkward stare-down.
   const [isScanning, setIsScanning] = useState(false);
+  // True from the moment "Initiate Face Scan" / "Initiate Scan" / "Face Scan"
+  // is heard until someone is actually confirmed and greeted (or the forced
+  // window times out). Overrides the normal isScanning gating below so the
+  // scan animation starts the instant the command is heard, even if she was
+  // mid-conversation, mid-greeting, or asleep at the time.
+  const [forcedScanActive, setForcedScanActive] = useState(false);
   // Load BlazeFace (presence/wake detection + eye tracking)
   useEffect(() => {
     const loadModel = async () => {
@@ -1476,14 +1556,28 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // falsely read as "scanning" and lit up the eyes/lines mid-sentence.
   useEffect(() => {
     setIsScanning(
-      isFaceDetected &&
-        introFinished &&
-        !isModelLoading &&
-        !isSpeaking &&
-        !activeGreeting &&
-        assistantMode === 'idle'
+      forcedScanActive ||
+        (isFaceDetected &&
+          introFinished &&
+          !isModelLoading &&
+          !isSpeaking &&
+          !activeGreeting &&
+          assistantMode === 'idle')
     );
-  }, [isFaceDetected, introFinished, isModelLoading, isSpeaking, activeGreeting, assistantMode]);
+  }, [forcedScanActive, isFaceDetected, introFinished, isModelLoading, isSpeaking, activeGreeting, assistantMode]);
+
+  // Once a forced scan actually confirms someone and a greeting starts,
+  // hand off to the normal greeting animation instead of continuing to show
+  // the scanning state on top of it.
+  useEffect(() => {
+    if (activeGreeting && forcedScanActive) {
+      setForcedScanActive(false);
+      if (forcedScanTimeoutRef.current) {
+        clearTimeout(forcedScanTimeoutRef.current);
+        forcedScanTimeoutRef.current = null;
+      }
+    }
+  }, [activeGreeting, forcedScanActive]);
 
   // Stay "awake" as long as a face is present, she's speaking, or she's
   // actively mid-conversation (listening/thinking) -- that last one matters
@@ -1748,14 +1842,28 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
       processGreetQueueRef.current?.();
     };
 
-    listenOnce({
+    activeListenCancelRef.current = listenOnce({
       timeoutMs: 8000,
       // Streams what the person is saying to the screen live, word by
       // word, the same way Gemini/ChatGPT/etc. show your speech as you talk.
       onInterim: (partial) => setLiveTranscript(partial),
       onResult: async (transcript) => {
         handled = true;
+        activeListenCancelRef.current = null;
         setLiveTranscript('');
+        // The face-scan command wins over whatever conversation was in
+        // progress -- even something said mid-question re-triggers a fresh
+        // scan+greeting instead of being sent to the AI as a question.
+        if (isFaceScanCommand(transcript)) {
+          triggerFaceScanCommandRef.current?.();
+          return;
+        }
+        // Same idea for the registration command -- opens the enrollment
+        // page immediately instead of treating it as a question for the AI.
+        if (isRegistrationCommand(transcript)) {
+          triggerRegistrationCommandRef.current?.();
+          return;
+        }
         setLastQuestion(transcript);
         assistantModeRef.current = 'thinking';
         setAssistantMode('thinking');
@@ -1792,6 +1900,7 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
       },
       onError: (err) => {
         handled = true;
+        activeListenCancelRef.current = null;
         console.warn('Speech recognition error:', err.message);
         // Silence (or a mic error) is what actually ends the conversation
         // now -- not the camera losing the face. Clearing this and nudging
@@ -1800,6 +1909,7 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
         endConversationCleanly();
       },
       onEnd: () => {
+        activeListenCancelRef.current = null;
         if (!handled) endConversationCleanly();
       },
     });
@@ -1816,15 +1926,22 @@ useEffect(() => {
   startListeningRef.current = startListening;
 }, [startListening]);
 
-  // Background wake-word listener. Only runs when she's awake, idle (not
-// already mid-greeting/conversation), and not talking herself -- otherwise
-// she could hear her own voice through the mic and re-trigger herself.
+  // Background wake-word / face-scan-command listener. Only runs when she's
+  // idle (not already mid-greeting/conversation) and not talking herself --
+  // otherwise she could hear her own voice through the mic and re-trigger
+  // herself, or "already started" would throw when another recognition
+  // session (listenOnce) also wants the mic.
+  //
+  // Deliberately NOT gated on isAwake: the face-scan command needs to work
+  // "regardless of what's currently happening", including while she's fully
+  // asleep with nobody in frame yet -- and since the wake word rides on this
+  // same recognition session (only one can run at a time), it gets the same
+  // always-listening treatment as a side effect.
 useEffect(() => {
   const canListenForWake =
     hasStarted &&
     introFinished &&
     isSpeechRecognitionSupported() &&
-    isAwake &&
     !isSpeaking &&
     assistantMode === 'idle';
 
@@ -1834,6 +1951,7 @@ useEffect(() => {
     // Matches "Trix", "Hi Trix", "Hello Trix", etc., plus common
     // speech-to-text mishearings of the name (e.g. "tricks").
     wakeWords: ['trix', 'tricks', 'trick', 'trish', 'tris'],
+    commandPhrases: [...FACE_SCAN_COMMANDS, ...REGISTRATION_COMMANDS],
     onWake: () => {
       stopWakeWordRef.current = null;
       // announce=false: saying "Hi Trix"/"Hello Trix"/"Trix" is the person
@@ -1842,6 +1960,14 @@ useEffect(() => {
       const name = activeGreeting?.name ?? null;
       startListeningRef.current(name, false, keyForPerson(name, activeGreeting?.title ?? null));
     },
+    onCommand: (phrase) => {
+      stopWakeWordRef.current = null;
+      if (REGISTRATION_COMMANDS.includes(phrase)) {
+        triggerRegistrationCommandRef.current?.();
+      } else {
+        triggerFaceScanCommandRef.current?.();
+      }
+    },
     onError: (err) => console.warn('Wake-word listener error:', err.message),
   });
 
@@ -1849,7 +1975,7 @@ useEffect(() => {
     stopWakeWordRef.current?.();
     stopWakeWordRef.current = null;
   };
-}, [hasStarted, introFinished, isAwake, isSpeaking, assistantMode, activeGreeting]);
+}, [hasStarted, introFinished, isSpeaking, assistantMode, activeGreeting]);
 
   // Scans every face currently in frame (not just the closest one) and
   // queues up a greeting for each newly-confirmed identity. Runs on its own
@@ -1937,6 +2063,78 @@ useEffect(() => {
     return () => clearInterval(recognitionIntervalRef.current);
   }, [isFaceDetected, scanFaces]);
 
+  // Fired by "Initiate Face Scan" / "Initiate Scan" / "Face Scan", heard
+  // either by the background listener or mid-conversation (see
+  // isFaceScanCommand above). Interrupts whatever's currently happening --
+  // an in-progress greeting, a question being answered, a stale cooldown --
+  // and forces a fresh recognition + welcome cycle.
+  const triggerFaceScanCommand = useCallback(() => {
+    console.log('Face-scan command heard -- interrupting to run a fresh scan.');
+
+    // Stop anything currently using her voice or the mic.
+    window.speechSynthesis?.cancel();
+    activeListenCancelRef.current?.();
+    activeListenCancelRef.current = null;
+    stopWakeWordRef.current?.();
+    stopWakeWordRef.current = null;
+
+    // Reset conversation/greeting bookkeeping so this isn't blocked by an
+    // "already greeted" cooldown or a queue left over from before the
+    // command interrupted things.
+    assistantModeRef.current = 'idle';
+    setAssistantMode('idle');
+    activePersonKeyRef.current = null;
+    activeGreetRef.current = null;
+    setActiveGreeting(null);
+    greetQueueRef.current = [];
+    queuedKeysRef.current = new Set();
+    candidateStreakRef.current = new Map();
+    greetedPresentRef.current = new Set();
+    lastGreetedAtRef.current = new Map();
+    setLiveTranscript('');
+
+    setIsAwake(true);
+    setForcedScanActive(true);
+    if (forcedScanTimeoutRef.current) clearTimeout(forcedScanTimeoutRef.current);
+    forcedScanTimeoutRef.current = setTimeout(() => {
+      setForcedScanActive(false);
+      forcedScanTimeoutRef.current = null;
+    }, FORCED_SCAN_TIMEOUT_MS);
+
+    // Kick a scan off right away rather than waiting for the next tick --
+    // if someone's already in frame this is what confirms/greets them.
+    scanFaces();
+  }, [scanFaces]);
+
+  useEffect(() => {
+    triggerFaceScanCommandRef.current = triggerFaceScanCommand;
+  }, [triggerFaceScanCommand]);
+
+  // Fired by "Initiate Face Registration" / "Initiate Register". Opens the
+  // enrollment page (a full page navigation, since routing here is just
+  // window.location.pathname -- see main.jsx). Stops her voice/mic first so
+  // nothing keeps talking or listening into a page that's about to unload.
+  const triggerRegistrationCommand = useCallback(() => {
+    console.log('Face-registration command heard -- opening enrollment page.');
+    window.speechSynthesis?.cancel();
+    activeListenCancelRef.current?.();
+    activeListenCancelRef.current = null;
+    stopWakeWordRef.current?.();
+    stopWakeWordRef.current = null;
+    window.location.href = REGISTRATION_PATH;
+  }, []);
+
+  useEffect(() => {
+    triggerRegistrationCommandRef.current = triggerRegistrationCommand;
+  }, [triggerRegistrationCommand]);
+
+  // Clear the forced-scan timeout on unmount.
+  useEffect(() => {
+    return () => {
+      if (forcedScanTimeoutRef.current) clearTimeout(forcedScanTimeoutRef.current);
+    };
+  }, []);
+
   const currentState = isModelLoading ? 'loading' : isAwake ? 'happy' : 'sleeping';
 
   const renderMessage = () => {
@@ -1959,6 +2157,7 @@ useEffect(() => {
       if (isScanning) return 'Scanning...';
       return 'Welcome!';
     }
+    if (forcedScanActive) return 'Scanning...';
     if (isAwake) return 'Still here...';
     return 'Zzz...';
   };
@@ -2027,7 +2226,7 @@ useEffect(() => {
 {!isSpeaking && assistantMode === 'thinking' && (
   <div className="robot-subtitle">ðŸ’­Â­ Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
 )}
-      {/* Bottom badge showing the currently-greeted person's title/role.ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â­
+      {/* Bottom badge showing the currently-greeted person's title/role.ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â­
           Suppressed while she's speaking so it never stacks under the
           speaking-subtitle above (that was the other half of the
           "double subtitle" bug -- two blue blocks rendering at once). */}
@@ -2621,6 +2820,29 @@ createRoot(document.getElementById('root')).render(
   color: #2ecc71;
 }
 
+.registration-preview-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.registration-review-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.registration-review-actions .registration-button {
+  width: auto;
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.registration-retake-button {
+  background: #34495e;
+  color: #ecf0f1;
+}
+
 .registration-back-link {
   display: inline-block;
   margin-top: 24px;
@@ -2638,59 +2860,129 @@ import './Registration.css';
 // "Other" reveals a free-text field for anything not listed here.
 const TITLE_OPTIONS = ['Admin', 'Teacher', 'Dean', 'Staff', 'Student', 'Guest', 'Other'];
 
+// After a successful save, how long to show the confirmation before sending
+// the person back to Trix's main screen (not the admin dashboard).
+const SUCCESS_REDIRECT_MS = 1800;
+const ROBOT_HOME_PATH = '/';
+
 function Registration() {
   const webcamRef = useRef(null);
   const [modelsReady, setModelsReady] = useState(false);
   const [name, setName] = useState('');
   const [title, setTitle] = useState(TITLE_OPTIONS[0]);
   const [customTitle, setCustomTitle] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | capturing | saving | success | error
+  // idle -> live camera, entering details
+  // capturing -> pulling a descriptor from the current frame
+  // review -> a frame's been captured; waiting on confirm/retake
+  // saving -> writing the confirmed capture to Supabase
+  // success -> saved; about to redirect back to the robot
+  const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
+  // Kept separate from `status` so an error while saving a *confirmed*
+  // capture can be shown without losing the review screen (retake/confirm
+  // stay available instead of being bounced back to the live camera).
+  const [messageType, setMessageType] = useState('info'); // info | error | success
+  // The exact frame the descriptor was pulled from, so the person can
+  // actually see/approve what's about to be saved.
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  // Holds the Float32Array descriptor between capture and confirm -- a ref
+  // since it doesn't need to trigger re-renders itself.
+  const capturedDescriptorRef = useRef(null);
+  const redirectTimeoutRef = useRef(null);
 
   useEffect(() => {
     loadFaceModels().then(() => setModelsReady(true));
   }, []);
 
-  const handleEnroll = useCallback(async () => {
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) clearTimeout(redirectTimeoutRef.current);
+    };
+  }, []);
+
+  // Step 1: pull a descriptor from the live camera and freeze a preview of
+  // that same frame. Doesn't save anything yet -- that only happens once
+  // the person confirms the preview looks right.
+  const handleCapture = useCallback(async () => {
     const finalTitle = title === 'Other' ? customTitle.trim() : title;
 
     if (!name.trim()) {
-      setStatus('error');
+      setMessageType('error');
       setMessage('Enter a name first.');
       return;
     }
     if (!finalTitle) {
-      setStatus('error');
+      setMessageType('error');
       setMessage('Choose or enter a title (e.g. Admin, Teacher, Dean).');
       return;
     }
     if (!webcamRef.current || !webcamRef.current.video) return;
 
     setStatus('capturing');
+    setMessageType('info');
     setMessage('Look at the camera...');
 
     const descriptor = await getFaceDescriptor(webcamRef.current.video);
     if (!descriptor) {
-      setStatus('error');
+      setStatus('idle');
+      setMessageType('error');
       setMessage('No face detected. Try again with better lighting.');
       return;
     }
 
+    const screenshot = webcamRef.current.getScreenshot();
+    capturedDescriptorRef.current = descriptor;
+    setCapturedPhoto(screenshot);
+    setStatus('review');
+    setMessageType('info');
+    setMessage('Does this photo look good?');
+  }, [name, title, customTitle]);
+
+  // Step 2a: person didn't like the preview -- discard it and go back to
+  // the live camera so they can try again.
+  const handleRetake = useCallback(() => {
+    capturedDescriptorRef.current = null;
+    setCapturedPhoto(null);
+    setStatus('idle');
+    setMessageType('info');
+    setMessage('');
+  }, []);
+
+  // Step 2b: person approved the preview -- now (and only now) actually
+  // save the face, then hand off to the robot's main screen.
+  const handleConfirmSave = useCallback(async () => {
+    const finalTitle = title === 'Other' ? customTitle.trim() : title;
+    if (!capturedDescriptorRef.current) {
+      // Guards against a stray click with nothing captured -- shouldn't be
+      // reachable since this button only renders during 'review'.
+      setStatus('idle');
+      return;
+    }
+
     setStatus('saving');
+    setMessageType('info');
+    setMessage('Saving...');
+
     try {
-      await saveFace(name.trim(), finalTitle, descriptor);
+      await saveFace(name.trim(), finalTitle, capturedDescriptorRef.current);
       setStatus('success');
-      setMessage(`Saved "${name.trim()}" (${finalTitle})!`);
-      setName('');
-      setCustomTitle('');
-      setTitle(TITLE_OPTIONS[0]);
+      setMessageType('success');
+      setMessage(`Saved "${name.trim()}" (${finalTitle})! Heading back to Trix...`);
+      redirectTimeoutRef.current = setTimeout(() => {
+        window.location.href = ROBOT_HOME_PATH;
+      }, SUCCESS_REDIRECT_MS);
     } catch (err) {
-      setStatus('error');
-      setMessage(err.message || 'Failed to save face.');
+      // Stay on the review screen (photo + confirm/retake) rather than
+      // bouncing back to the live camera -- the capture itself was fine,
+      // only the save failed, so there's no reason to make them retake it.
+      setStatus('review');
+      setMessageType('error');
+      setMessage(err.message || 'Failed to save face. Try again.');
     }
   }, [name, title, customTitle]);
 
   const isBusy = status === 'capturing' || status === 'saving';
+  const isReviewing = status === 'review' || status === 'saving';
 
   return (
     <div className="registration-container">
@@ -2700,12 +2992,16 @@ function Registration() {
       </p>
 
       <div className="registration-webcam-wrap">
-        <Webcam
-          ref={webcamRef}
-          audio={false}
-          screenshotFormat="image/jpeg"
-          videoConstraints={{ width: 320, height: 240, facingMode: 'user' }}
-        />
+        {isReviewing && capturedPhoto ? (
+          <img src={capturedPhoto} alt="Captured preview" className="registration-preview-photo" />
+        ) : (
+          <Webcam
+            ref={webcamRef}
+            audio={false}
+            screenshotFormat="image/jpeg"
+            videoConstraints={{ width: 320, height: 240, facingMode: 'user' }}
+          />
+        )}
       </div>
 
       <input
@@ -2714,14 +3010,14 @@ function Registration() {
         value={name}
         onChange={(e) => setName(e.target.value)}
         className="registration-input"
-        disabled={isBusy}
+        disabled={isBusy || isReviewing}
       />
 
       <select
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         className="registration-select"
-        disabled={isBusy}
+        disabled={isBusy || isReviewing}
       >
         {TITLE_OPTIONS.map((opt) => (
           <option key={opt} value={opt}>
@@ -2737,22 +3033,41 @@ function Registration() {
           value={customTitle}
           onChange={(e) => setCustomTitle(e.target.value)}
           className="registration-input"
-          disabled={isBusy}
+          disabled={isBusy || isReviewing}
         />
       )}
 
-      <button
-        onClick={handleEnroll}
-        disabled={!modelsReady || isBusy}
-        className="registration-button"
-      >
-        {isBusy ? 'Working...' : 'Capture & Save'}
-      </button>
+      {status === 'review' || status === 'saving' ? (
+        <div className="registration-review-actions">
+          <button
+            onClick={handleRetake}
+            disabled={status === 'saving'}
+            className="registration-button registration-retake-button"
+          >
+            Retake
+          </button>
+          <button
+            onClick={handleConfirmSave}
+            disabled={status === 'saving'}
+            className="registration-button"
+          >
+            {status === 'saving' ? 'Saving...' : 'Confirm & Save'}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleCapture}
+          disabled={!modelsReady || isBusy}
+          className="registration-button"
+        >
+          {status === 'capturing' ? 'Working...' : 'Capture'}
+        </button>
+      )}
 
-      {message && <p className={`registration-message ${status}`}>{message}</p>}
+      {message && <p className={`registration-message ${messageType}`}>{message}</p>}
 
-      <a className="registration-back-link" href="/admin">
-        &larr; Back to admin dashboard
+      <a className="registration-back-link" href="/">
+        &larr; Back to Trix
       </a>
     </div>
   );

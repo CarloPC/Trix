@@ -63,6 +63,10 @@ const UNKNOWN_KEY = 'UNKNOWN_VISITOR';
 // matter what Trix is currently doing (idle, mid-conversation, mid-greeting,
 // asleep). "Initiate Face Scan", "Initiate Scan", "Face Scan".
 const FACE_SCAN_COMMANDS = DEFAULT_FACE_SCAN_COMMANDS;
+// Voice command that opens the face-enrollment page. "Initiate Face
+// Registration", "Initiate Register".
+const REGISTRATION_COMMANDS = ['initiate face registration', 'initiate register'];
+const REGISTRATION_PATH = '/admin/register';
 // How long to hold the forced "scanning" look if the command is heard but
 // nobody ever steps into frame to be recognized -- otherwise she'd be stuck
 // looking like she's scanning forever.
@@ -71,10 +75,20 @@ const isFaceScanCommand = (text) => {
   const lower = text.trim().toLowerCase();
   return FACE_SCAN_COMMANDS.some((phrase) => lower.includes(phrase));
 };
+const isRegistrationCommand = (text) => {
+  const lower = text.trim().toLowerCase();
+  return REGISTRATION_COMMANDS.some((phrase) => lower.includes(phrase));
+};
 // Same identity-key scheme scanFaces uses, shared so the active conversation
 // can check "is the person I'm talking to still the one in frame?" against
 // the exact same keys candidateStreakRef tracks.
 const keyForPerson = (name, title) => (name ? `${name}::${title ?? ''}` : UNKNOWN_KEY);
+
+// Live date/time readout (upper-right corner).
+const formatDate = (d) =>
+  d.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' });
+const formatTime = (d) =>
+  d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 // Eye-tracking tuning
 const MAX_PUPIL_OFFSET_X = 22;
@@ -218,6 +232,7 @@ function App() {
   // Lets callbacks defined earlier (startListening, the wake-word handler)
   // call the force-scan handler defined later without a stale closure.
   const triggerFaceScanCommandRef = useRef(() => {});
+  const triggerRegistrationCommandRef = useRef(() => {});
   const forcedScanTimeoutRef = useRef(null);
 
   // FOR AI CHAT
@@ -258,6 +273,12 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // scan animation starts the instant the command is heard, even if she was
   // mid-conversation, mid-greeting, or asleep at the time.
   const [forcedScanActive, setForcedScanActive] = useState(false);
+  // Drives the live Date:/Time: readout in the upper-right corner.
+  const [clockTime, setClockTime] = useState(new Date());
+  useEffect(() => {
+    const tick = setInterval(() => setClockTime(new Date()), 1000);
+    return () => clearInterval(tick);
+  }, []);
   // Load BlazeFace (presence/wake detection + eye tracking)
   useEffect(() => {
     const loadModel = async () => {
@@ -616,6 +637,12 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
           triggerFaceScanCommandRef.current?.();
           return;
         }
+        // Same idea for the registration command -- opens the enrollment
+        // page immediately instead of treating it as a question for the AI.
+        if (isRegistrationCommand(transcript)) {
+          triggerRegistrationCommandRef.current?.();
+          return;
+        }
         setLastQuestion(transcript);
         assistantModeRef.current = 'thinking';
         setAssistantMode('thinking');
@@ -703,7 +730,7 @@ useEffect(() => {
     // Matches "Trix", "Hi Trix", "Hello Trix", etc., plus common
     // speech-to-text mishearings of the name (e.g. "tricks").
     wakeWords: ['trix', 'tricks', 'trick', 'trish', 'tris'],
-    commandPhrases: FACE_SCAN_COMMANDS,
+    commandPhrases: [...FACE_SCAN_COMMANDS, ...REGISTRATION_COMMANDS],
     onWake: () => {
       stopWakeWordRef.current = null;
       // announce=false: saying "Hi Trix"/"Hello Trix"/"Trix" is the person
@@ -712,9 +739,13 @@ useEffect(() => {
       const name = activeGreeting?.name ?? null;
       startListeningRef.current(name, false, keyForPerson(name, activeGreeting?.title ?? null));
     },
-    onCommand: () => {
+    onCommand: (phrase) => {
       stopWakeWordRef.current = null;
-      triggerFaceScanCommandRef.current?.();
+      if (REGISTRATION_COMMANDS.includes(phrase)) {
+        triggerRegistrationCommandRef.current?.();
+      } else {
+        triggerFaceScanCommandRef.current?.();
+      }
     },
     onError: (err) => console.warn('Wake-word listener error:', err.message),
   });
@@ -858,6 +889,24 @@ useEffect(() => {
     triggerFaceScanCommandRef.current = triggerFaceScanCommand;
   }, [triggerFaceScanCommand]);
 
+  // Fired by "Initiate Face Registration" / "Initiate Register". Opens the
+  // enrollment page (a full page navigation, since routing here is just
+  // window.location.pathname -- see main.jsx). Stops her voice/mic first so
+  // nothing keeps talking or listening into a page that's about to unload.
+  const triggerRegistrationCommand = useCallback(() => {
+    console.log('Face-registration command heard -- opening enrollment page.');
+    window.speechSynthesis?.cancel();
+    activeListenCancelRef.current?.();
+    activeListenCancelRef.current = null;
+    stopWakeWordRef.current?.();
+    stopWakeWordRef.current = null;
+    window.location.href = REGISTRATION_PATH;
+  }, []);
+
+  useEffect(() => {
+    triggerRegistrationCommandRef.current = triggerRegistrationCommand;
+  }, [triggerRegistrationCommand]);
+
   // Clear the forced-scan timeout on unmount.
   useEffect(() => {
     return () => {
@@ -895,6 +944,10 @@ useEffect(() => {
   if (!hasStarted) {
     return (
       <div className="app-container">
+        <div className="datetime-corner">
+          <div className="clock-time">{formatTime(clockTime)}</div>
+          <div className="clock-date">{formatDate(clockTime)}</div>
+        </div>
         <div className="start-screen">
           <div className="start-glow" />
           <h1 className="start-title">{ROBOT_NAME}</h1>
@@ -926,6 +979,11 @@ useEffect(() => {
 
   return (
     <div className="app-container">
+      <div className="datetime-corner">
+        <div className="clock-time">{formatTime(clockTime)}</div>
+        <div className="clock-date">{formatDate(clockTime)}</div>
+      </div>
+
       <div className={`robot-head ${currentState}`}>
         <RobotFace
           state={currentState}
@@ -954,9 +1012,9 @@ useEffect(() => {
   </div>
 )}
 {!isSpeaking && assistantMode === 'thinking' && (
-  <div className="robot-subtitle">💭 Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
+  <div className="robot-subtitle">💭­ Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
 )}
-      {/* Bottom badge showing the currently-greeted person's title/role.ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â­
+      {/* Bottom badge showing the currently-greeted person's title/role.ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â­
           Suppressed while she's speaking so it never stacks under the
           speaking-subtitle above (that was the other half of the
           "double subtitle" bug -- two blue blocks rendering at once). */}

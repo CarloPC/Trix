@@ -445,3 +445,33 @@ body {
   cursor: not-allowed;
   box-shadow: none;
 }
+
+.datetime-corner {
+  position: fixed;
+  top: 1.5vmin;
+  right: 1.5vmin;
+  text-align: right;
+  pointer-events: none;
+  z-index: 10;
+  font-family: 'Courier New', 'Consolas', monospace;
+}
+
+.clock-time {
+  font-size: 5vmin;
+  font-weight: 700;
+  color: #00e5ff;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.8), 0 0 18px rgba(0, 229, 255, 0.4);
+  line-height: 1;
+}
+
+.clock-date {
+  margin-top: 0.5vmin;
+  font-size: 4vmin;
+  font-weight: 600;
+  color: #00e5ff;
+  letter-spacing: 0.15em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 4px rgba(0, 229, 255, 0.6);
+}

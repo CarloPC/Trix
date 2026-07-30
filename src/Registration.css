@@ -80,6 +80,29 @@
   color: #2ecc71;
 }
 
+.registration-preview-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.registration-review-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.registration-review-actions .registration-button {
+  width: auto;
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.registration-retake-button {
+  background: #34495e;
+  color: #ecf0f1;
+}
+
 .registration-back-link {
   display: inline-block;
   margin-top: 24px;
