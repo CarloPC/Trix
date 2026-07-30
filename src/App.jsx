@@ -1,6 +1,7 @@
 import {
   listenOnce,
   listenForWakeWord,
+  listenForBargeIn,
   isSpeechRecognitionSupported,
   DEFAULT_FACE_SCAN_COMMANDS,
 } from './lib/voiceInput';
@@ -95,6 +96,12 @@ const MAX_PUPIL_OFFSET_X = 22;
 const MAX_PUPIL_OFFSET_Y = 14;
 const INVERT_X = true;
 const INVERT_Y = false;
+
+// How long, right after Trix starts speaking, to ignore barge-in triggers.
+// Rides out the loudest initial echo of her own voice bleeding into the mic
+// (see listenForBargeIn's caveat in voiceInput.js) so she doesn't
+// immediately "interrupt herself" the moment she opens her mouth.
+const INTERRUPT_GRACE_MS = 600;
 
 // Blink tuning
 const BLINK_MIN_DELAY = 2200;
@@ -234,6 +241,11 @@ function App() {
   const triggerFaceScanCommandRef = useRef(() => {});
   const triggerRegistrationCommandRef = useRef(() => {});
   const forcedScanTimeoutRef = useRef(null);
+  // Timestamp (ms) of when Trix's current utterance actually started
+  // speaking -- used by the barge-in listener's grace window (see
+  // INTERRUPT_GRACE_MS) to ignore her own voice bleeding into the mic right
+  // as she opens her mouth.
+  const speakStartTimeRef = useRef(0);
 
   // FOR AI CHAT
   const [assistantMode, setAssistantMode] = useState('idle'); // idle | listening | thinking
@@ -422,6 +434,7 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   utterance.pitch = 1.1;
   utterance.onstart = () => {
     setIsSpeaking(true);
+    speakStartTimeRef.current = Date.now();
     setSpokenText(text);        // <-- shows the subtitle the instant she starts, not after
     setSpokenWordIndex(-1);
   };
@@ -755,6 +768,47 @@ useEffect(() => {
     stopWakeWordRef.current = null;
   };
 }, [hasStarted, introFinished, isSpeaking, assistantMode, activeGreeting]);
+
+  // Fired the instant the barge-in listener below detects the person has
+  // started talking WHILE Trix is still speaking. Cuts her off immediately
+  // and opens the mic for their actual question -- the same "talk over it
+  // and it shuts up and listens" behavior other voice assistants have.
+  // Reads state off refs (not React state) so this stays a stable callback
+  // and doesn't need to be re-created/re-subscribed every render.
+  const handleUserInterrupt = useCallback(() => {
+    console.log('Barge-in: person started talking -- stopping to listen.');
+    window.speechSynthesis?.cancel();
+    const active = activeGreetRef.current;
+    const name = active?.name ?? null;
+    const key = active?.key ?? activePersonKeyRef.current ?? keyForPerson(name, active?.title ?? null);
+    // announce=false: they're already mid-sentence, so open the mic
+    // straight away instead of talking over them with another prompt.
+    startListeningRef.current(name, false, key);
+  }, []);
+
+  // Background barge-in listener -- only runs while she's actually
+  // speaking. The moment it fires, we cancel her speech and start
+  // listening (above). Deliberately NOT gated on assistantMode being
+  // 'idle': she can be speaking a greeting, an answer, or the intro, and in
+  // every case being talked over should interrupt it the same way.
+  useEffect(() => {
+    if (!hasStarted || !isSpeechRecognitionSupported() || !isSpeaking) return;
+
+    const stopBargeInListener = listenForBargeIn({
+      onSpeechStart: () => {
+        // Ignore triggers in the first stretch of her own utterance -- most
+        // likely her own voice bleeding into the mic, not a real interrupt.
+        if (Date.now() - speakStartTimeRef.current < INTERRUPT_GRACE_MS) return;
+        stopBargeInListener?.();
+        handleUserInterrupt();
+      },
+      onError: (err) => console.warn('Barge-in listener error:', err.message),
+    });
+
+    return () => {
+      stopBargeInListener?.();
+    };
+  }, [hasStarted, isSpeaking, handleUserInterrupt]);
 
   // Scans every face currently in frame (not just the closest one) and
   // queues up a greeting for each newly-confirmed identity. Runs on its own

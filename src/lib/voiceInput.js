@@ -226,3 +226,72 @@ export function listenForWakeWord({
     recognition?.stop();
   };
 }
+
+// Listens for the PERSON STARTING TO TALK -- nothing more. Used purely for
+// barge-in: while Trix is speaking, this runs in the background and fires
+// onSpeechStart() the instant it detects a human voice, so the caller can
+// immediately cancel her speech and switch to listening -- the same
+// "talk over it and it shuts up" behavior other voice assistants have.
+//
+// Deliberately uses the recognizer's onspeechstart event rather than waiting
+// for onresult/a transcribed word: onspeechstart fires as soon as the
+// browser detects speech energy, which is noticeably faster than waiting for
+// speech-to-text to actually produce a word. We don't care what was said
+// here -- once triggered, the caller re-opens the mic via listenOnce/
+// startListening to actually capture the real question.
+//
+// Caveat: without proper acoustic echo cancellation, Trix's own voice
+// coming out of the speakers can bleed into the mic and falsely trigger
+// this (she "interrupts herself"). Chrome applies some echo cancellation to
+// the default mic automatically, but for the most reliable behavior use
+// headphones or keep speaker volume moderate. Callers should also apply a
+// short grace period after speech starts before honoring a trigger, to ride
+// out the loudest initial echo.
+export function listenForBargeIn({ onSpeechStart, onError }) {
+  if (!SpeechRecognitionImpl) {
+    onError?.(new Error('Speech recognition is not supported in this browser.'));
+    return () => {};
+  }
+
+  const recognition = new SpeechRecognitionImpl();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.continuous = true;
+
+  let stopped = false;
+  let fired = false;
+
+  recognition.onspeechstart = () => {
+    if (fired || stopped) return;
+    fired = true;
+    onSpeechStart?.();
+  };
+
+  recognition.onerror = (event) => {
+    // "no-speech" / "aborted" are routine on a listener that's stopped the
+    // moment it triggers (or never hears anything before being torn down)
+    // -- only surface genuine problems like a denied mic permission.
+    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      onError?.(new Error(event.error));
+    }
+  };
+
+  try {
+    recognition.start();
+  } catch {
+    // Transient "already started" race (e.g. handoff from the wake-word
+    // listener tearing down) -- harmless to just skip this cycle, the
+    // effect that owns this listener will retry on its next dependency
+    // change.
+  }
+
+  return () => {
+    stopped = true;
+    fired = true;
+    try {
+      recognition.stop();
+    } catch {
+      // already stopped/never started -- nothing to do
+    }
+  };
+}

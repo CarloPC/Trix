@@ -21,13 +21,53 @@ const CREATOR_QUESTION_REGEX =
   /\b(who\s+(made|built|created|developed|designed|programmed)\s+you|who('?s| is)\s+your\s+(developer|creator|maker|programmer)|who\s+(is|are)\s+(the\s+)?(developer|creator|programmer|program\s*head)s?|(created|developed|built)\s+you)\b/i;
 
 const CREATOR_ANSWER =
-  "I was developed by Carlo Cañezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head, and Team OJT's";
+  "I was developed by Carlo CaÃ±ezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head, and Team OJT's";
+
+// Quick, deterministic answer for "what time/date is it" questions -- the
+// LLM has no access to the real clock and was guessing/hallucinating a time,
+// so this skips it entirely and answers with the actual current time in the
+// Philippines (Asia/Manila), regardless of what timezone the server/browser
+// itself happens to be running in.
+const TIME_QUESTION_REGEX =
+  /\bwhat(?:'?s| is)?\s+(?:the\s+)?time(?:\s+(?:is\s+it|right\s+now|now))?\b|\bcurrent\s+time\b|\btime\s+(?:is\s+it|now)\b/i;
+
+const DATE_QUESTION_REGEX =
+  /\bwhat(?:'?s| is)?\s+(?:the\s+)?date\b|\bwhat\s+day\s+is\s+it(?:\s+today)?\b|\btoday'?s?\s+date\b|\bwhat'?s?\s+today'?s?\s+date\b/i;
+
+const MANILA_TIME_ZONE = 'Asia/Manila';
+
+const getManilaTimeAnswer = () => {
+  const time = new Date().toLocaleTimeString('en-US', {
+    timeZone: MANILA_TIME_ZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `It's ${time} right now.`;
+};
+
+const getManilaDateAnswer = () => {
+  const date = new Date().toLocaleDateString('en-US', {
+    timeZone: MANILA_TIME_ZONE,
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  return `Today is ${date}.`;
+};
 
 // conversationHistory: array of { role: 'user' | 'assistant', content: string }
 // personName: optional, lets Trix address a recognized visitor by name.
 export async function askAI(question, conversationHistory = [], personName = null) {
   if (CREATOR_QUESTION_REGEX.test(question)) {
     return CREATOR_ANSWER;
+  }
+  if (TIME_QUESTION_REGEX.test(question)) {
+    return getManilaTimeAnswer();
+  }
+  if (DATE_QUESTION_REGEX.test(question)) {
+    return getManilaDateAnswer();
   }
 
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
