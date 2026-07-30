@@ -1,7 +1,7 @@
 import {
   listenOnce,
   listenForWakeWord,
-  listenForBargeIn,
+  listenForInterruptWord,
   isSpeechRecognitionSupported,
   DEFAULT_FACE_SCAN_COMMANDS,
 } from './lib/voiceInput';
@@ -66,7 +66,7 @@ const UNKNOWN_KEY = 'UNKNOWN_VISITOR';
 const FACE_SCAN_COMMANDS = DEFAULT_FACE_SCAN_COMMANDS;
 // Voice command that opens the face-enrollment page. "Initiate Face
 // Registration", "Initiate Register".
-const REGISTRATION_COMMANDS = ['initiate face registration', 'initiate registration', 'initiate register'];
+const REGISTRATION_COMMANDS = ['initiate face registration', 'initiate register'];
 const REGISTRATION_PATH = '/admin/register';
 // How long to hold the forced "scanning" look if the command is heard but
 // nobody ever steps into frame to be recognized -- otherwise she'd be stuck
@@ -97,11 +97,11 @@ const MAX_PUPIL_OFFSET_Y = 14;
 const INVERT_X = true;
 const INVERT_Y = false;
 
-// How long, right after Trix starts speaking, to ignore barge-in triggers.
-// Rides out the loudest initial echo of her own voice bleeding into the mic
-// (see listenForBargeIn's caveat in voiceInput.js) so she doesn't
-// immediately "interrupt herself" the moment she opens her mouth.
-const INTERRUPT_GRACE_MS = 600;
+// How long, right after Trix starts speaking, to ignore interrupt triggers.
+// Guards against her own voice bleeding into the mic via speaker echo and
+// her recognizing her own line containing "stop"/"skip" as a command from
+// the person (rare, but her own scripted lines could contain those words).
+const INTERRUPT_GRACE_MS = 400;
 
 // Blink tuning
 const BLINK_MIN_DELAY = 2200;
@@ -242,7 +242,7 @@ function App() {
   const triggerRegistrationCommandRef = useRef(() => {});
   const forcedScanTimeoutRef = useRef(null);
   // Timestamp (ms) of when Trix's current utterance actually started
-  // speaking -- used by the barge-in listener's grace window (see
+  // speaking -- used by the interrupt-word listener's grace window (see
   // INTERRUPT_GRACE_MS) to ignore her own voice bleeding into the mic right
   // as she opens her mouth.
   const speakStartTimeRef = useRef(0);
@@ -769,44 +769,45 @@ useEffect(() => {
   };
 }, [hasStarted, introFinished, isSpeaking, assistantMode, activeGreeting]);
 
-  // Fired the instant the barge-in listener below detects the person has
-  // started talking WHILE Trix is still speaking. Cuts her off immediately
-  // and opens the mic for their actual question -- the same "talk over it
-  // and it shuts up and listens" behavior other voice assistants have.
-  // Reads state off refs (not React state) so this stays a stable callback
-  // and doesn't need to be re-created/re-subscribed every render.
+  // Fired the instant the listener below hears the person say "stop" or
+  // "skip" WHILE Trix is still speaking. Cuts her off immediately and opens
+  // the mic for whatever they want to say next. Reads state off refs (not
+  // React state) so this stays a stable callback and doesn't need to be
+  // re-created/re-subscribed every render.
   const handleUserInterrupt = useCallback(() => {
-    console.log('Barge-in: person started talking -- stopping to listen.');
+    console.log('Interrupt word heard -- stopping to listen.');
     window.speechSynthesis?.cancel();
     const active = activeGreetRef.current;
     const name = active?.name ?? null;
     const key = active?.key ?? activePersonKeyRef.current ?? keyForPerson(name, active?.title ?? null);
-    // announce=false: they're already mid-sentence, so open the mic
+    // announce=false: they already said "stop"/"skip", so open the mic
     // straight away instead of talking over them with another prompt.
     startListeningRef.current(name, false, key);
   }, []);
 
-  // Background barge-in listener -- only runs while she's actually
-  // speaking. The moment it fires, we cancel her speech and start
-  // listening (above). Deliberately NOT gated on assistantMode being
-  // 'idle': she can be speaking a greeting, an answer, or the intro, and in
-  // every case being talked over should interrupt it the same way.
+  // Background "stop"/"skip" listener -- only runs while she's actually
+  // speaking, and only reacts to those two words, not to background noise
+  // or general chatter (that's what made the earlier "interrupt on any
+  // sound" version cut her off constantly during normal conversation).
+  // Deliberately NOT gated on assistantMode being 'idle': she can be
+  // speaking a greeting, an answer, or the intro, and in every case hearing
+  // "stop"/"skip" should interrupt it the same way.
   useEffect(() => {
     if (!hasStarted || !isSpeechRecognitionSupported() || !isSpeaking) return;
 
-    const stopBargeInListener = listenForBargeIn({
-      onSpeechStart: () => {
-        // Ignore triggers in the first stretch of her own utterance -- most
-        // likely her own voice bleeding into the mic, not a real interrupt.
+    const stopInterruptListener = listenForInterruptWord({
+      onInterrupt: () => {
+        // Ignore triggers in the first stretch of her own utterance -- see
+        // INTERRUPT_GRACE_MS above.
         if (Date.now() - speakStartTimeRef.current < INTERRUPT_GRACE_MS) return;
-        stopBargeInListener?.();
+        stopInterruptListener?.();
         handleUserInterrupt();
       },
-      onError: (err) => console.warn('Barge-in listener error:', err.message),
+      onError: (err) => console.warn('Interrupt-word listener error:', err.message),
     });
 
     return () => {
-      stopBargeInListener?.();
+      stopInterruptListener?.();
     };
   }, [hasStarted, isSpeaking, handleUserInterrupt]);
 
