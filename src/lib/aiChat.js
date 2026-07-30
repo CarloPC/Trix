@@ -21,7 +21,7 @@ const CREATOR_QUESTION_REGEX =
   /\b(who\s+(made|built|created|developed|designed|programmed)\s+you|who('?s| is)\s+your\s+(developer|creator|maker|programmer)|who\s+(is|are)\s+(the\s+)?(developer|creator|programmer|program\s*head)s?|(created|developed|built)\s+you)\b/i;
 
 const CREATOR_ANSWER =
-  "I was developed by Carlo CaÃ±ezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head, and Team OJT's";
+  "I was developed by Carlo Cañezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head, and Team OJT's";
 
 // Quick, deterministic answer for "what time/date is it" questions -- the
 // LLM has no access to the real clock and was guessing/hallucinating a time,

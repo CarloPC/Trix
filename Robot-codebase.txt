@@ -36,13 +36,53 @@ const CREATOR_QUESTION_REGEX =
   /\b(who\s+(made|built|created|developed|designed|programmed)\s+you|who('?s| is)\s+your\s+(developer|creator|maker|programmer)|who\s+(is|are)\s+(the\s+)?(developer|creator|programmer|program\s*head)s?|(created|developed|built)\s+you)\b/i;
 
 const CREATOR_ANSWER =
-  "I was developed by Carlo CaÃ±ezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head, and Team OJT's";
+  "I was developed by Carlo CaÃƒÂ±ezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head, and Team OJT's";
+
+// Quick, deterministic answer for "what time/date is it" questions -- the
+// LLM has no access to the real clock and was guessing/hallucinating a time,
+// so this skips it entirely and answers with the actual current time in the
+// Philippines (Asia/Manila), regardless of what timezone the server/browser
+// itself happens to be running in.
+const TIME_QUESTION_REGEX =
+  /\bwhat(?:'?s| is)?\s+(?:the\s+)?time(?:\s+(?:is\s+it|right\s+now|now))?\b|\bcurrent\s+time\b|\btime\s+(?:is\s+it|now)\b/i;
+
+const DATE_QUESTION_REGEX =
+  /\bwhat(?:'?s| is)?\s+(?:the\s+)?date\b|\bwhat\s+day\s+is\s+it(?:\s+today)?\b|\btoday'?s?\s+date\b|\bwhat'?s?\s+today'?s?\s+date\b/i;
+
+const MANILA_TIME_ZONE = 'Asia/Manila';
+
+const getManilaTimeAnswer = () => {
+  const time = new Date().toLocaleTimeString('en-US', {
+    timeZone: MANILA_TIME_ZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `It's ${time} right now.`;
+};
+
+const getManilaDateAnswer = () => {
+  const date = new Date().toLocaleDateString('en-US', {
+    timeZone: MANILA_TIME_ZONE,
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  return `Today is ${date}.`;
+};
 
 // conversationHistory: array of { role: 'user' | 'assistant', content: string }
 // personName: optional, lets Trix address a recognized visitor by name.
 export async function askAI(question, conversationHistory = [], personName = null) {
   if (CREATOR_QUESTION_REGEX.test(question)) {
     return CREATOR_ANSWER;
+  }
+  if (TIME_QUESTION_REGEX.test(question)) {
+    return getManilaTimeAnswer();
+  }
+  if (DATE_QUESTION_REGEX.test(question)) {
+    return getManilaDateAnswer();
   }
 
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
@@ -506,6 +546,75 @@ export function listenForWakeWord({
   return () => {
     stopped = true;
     recognition?.stop();
+  };
+}
+
+// Listens for the PERSON STARTING TO TALK -- nothing more. Used purely for
+// barge-in: while Trix is speaking, this runs in the background and fires
+// onSpeechStart() the instant it detects a human voice, so the caller can
+// immediately cancel her speech and switch to listening -- the same
+// "talk over it and it shuts up" behavior other voice assistants have.
+//
+// Deliberately uses the recognizer's onspeechstart event rather than waiting
+// for onresult/a transcribed word: onspeechstart fires as soon as the
+// browser detects speech energy, which is noticeably faster than waiting for
+// speech-to-text to actually produce a word. We don't care what was said
+// here -- once triggered, the caller re-opens the mic via listenOnce/
+// startListening to actually capture the real question.
+//
+// Caveat: without proper acoustic echo cancellation, Trix's own voice
+// coming out of the speakers can bleed into the mic and falsely trigger
+// this (she "interrupts herself"). Chrome applies some echo cancellation to
+// the default mic automatically, but for the most reliable behavior use
+// headphones or keep speaker volume moderate. Callers should also apply a
+// short grace period after speech starts before honoring a trigger, to ride
+// out the loudest initial echo.
+export function listenForBargeIn({ onSpeechStart, onError }) {
+  if (!SpeechRecognitionImpl) {
+    onError?.(new Error('Speech recognition is not supported in this browser.'));
+    return () => {};
+  }
+
+  const recognition = new SpeechRecognitionImpl();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.continuous = true;
+
+  let stopped = false;
+  let fired = false;
+
+  recognition.onspeechstart = () => {
+    if (fired || stopped) return;
+    fired = true;
+    onSpeechStart?.();
+  };
+
+  recognition.onerror = (event) => {
+    // "no-speech" / "aborted" are routine on a listener that's stopped the
+    // moment it triggers (or never hears anything before being torn down)
+    // -- only surface genuine problems like a denied mic permission.
+    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      onError?.(new Error(event.error));
+    }
+  };
+
+  try {
+    recognition.start();
+  } catch {
+    // Transient "already started" race (e.g. handoff from the wake-word
+    // listener tearing down) -- harmless to just skip this cycle, the
+    // effect that owns this listener will retry on its next dependency
+    // change.
+  }
+
+  return () => {
+    stopped = true;
+    fired = true;
+    try {
+      recognition.stop();
+    } catch {
+      // already stopped/never started -- nothing to do
+    }
   };
 }
 
@@ -1234,6 +1343,7 @@ export default AdminPage;
 import {
   listenOnce,
   listenForWakeWord,
+  listenForBargeIn,
   isSpeechRecognitionSupported,
   DEFAULT_FACE_SCAN_COMMANDS,
 } from './lib/voiceInput';
@@ -1317,11 +1427,23 @@ const isRegistrationCommand = (text) => {
 // the exact same keys candidateStreakRef tracks.
 const keyForPerson = (name, title) => (name ? `${name}::${title ?? ''}` : UNKNOWN_KEY);
 
+// Live date/time readout (upper-right corner).
+const formatDate = (d) =>
+  d.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' });
+const formatTime = (d) =>
+  d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
 // Eye-tracking tuning
 const MAX_PUPIL_OFFSET_X = 22;
 const MAX_PUPIL_OFFSET_Y = 14;
 const INVERT_X = true;
 const INVERT_Y = false;
+
+// How long, right after Trix starts speaking, to ignore barge-in triggers.
+// Rides out the loudest initial echo of her own voice bleeding into the mic
+// (see listenForBargeIn's caveat in voiceInput.js) so she doesn't
+// immediately "interrupt herself" the moment she opens her mouth.
+const INTERRUPT_GRACE_MS = 600;
 
 // Blink tuning
 const BLINK_MIN_DELAY = 2200;
@@ -1461,6 +1583,11 @@ function App() {
   const triggerFaceScanCommandRef = useRef(() => {});
   const triggerRegistrationCommandRef = useRef(() => {});
   const forcedScanTimeoutRef = useRef(null);
+  // Timestamp (ms) of when Trix's current utterance actually started
+  // speaking -- used by the barge-in listener's grace window (see
+  // INTERRUPT_GRACE_MS) to ignore her own voice bleeding into the mic right
+  // as she opens her mouth.
+  const speakStartTimeRef = useRef(0);
 
   // FOR AI CHAT
   const [assistantMode, setAssistantMode] = useState('idle'); // idle | listening | thinking
@@ -1500,6 +1627,12 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // scan animation starts the instant the command is heard, even if she was
   // mid-conversation, mid-greeting, or asleep at the time.
   const [forcedScanActive, setForcedScanActive] = useState(false);
+  // Drives the live Date:/Time: readout in the upper-right corner.
+  const [clockTime, setClockTime] = useState(new Date());
+  useEffect(() => {
+    const tick = setInterval(() => setClockTime(new Date()), 1000);
+    return () => clearInterval(tick);
+  }, []);
   // Load BlazeFace (presence/wake detection + eye tracking)
   useEffect(() => {
     const loadModel = async () => {
@@ -1643,6 +1776,7 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   utterance.pitch = 1.1;
   utterance.onstart = () => {
     setIsSpeaking(true);
+    speakStartTimeRef.current = Date.now();
     setSpokenText(text);        // <-- shows the subtitle the instant she starts, not after
     setSpokenWordIndex(-1);
   };
@@ -1977,6 +2111,47 @@ useEffect(() => {
   };
 }, [hasStarted, introFinished, isSpeaking, assistantMode, activeGreeting]);
 
+  // Fired the instant the barge-in listener below detects the person has
+  // started talking WHILE Trix is still speaking. Cuts her off immediately
+  // and opens the mic for their actual question -- the same "talk over it
+  // and it shuts up and listens" behavior other voice assistants have.
+  // Reads state off refs (not React state) so this stays a stable callback
+  // and doesn't need to be re-created/re-subscribed every render.
+  const handleUserInterrupt = useCallback(() => {
+    console.log('Barge-in: person started talking -- stopping to listen.');
+    window.speechSynthesis?.cancel();
+    const active = activeGreetRef.current;
+    const name = active?.name ?? null;
+    const key = active?.key ?? activePersonKeyRef.current ?? keyForPerson(name, active?.title ?? null);
+    // announce=false: they're already mid-sentence, so open the mic
+    // straight away instead of talking over them with another prompt.
+    startListeningRef.current(name, false, key);
+  }, []);
+
+  // Background barge-in listener -- only runs while she's actually
+  // speaking. The moment it fires, we cancel her speech and start
+  // listening (above). Deliberately NOT gated on assistantMode being
+  // 'idle': she can be speaking a greeting, an answer, or the intro, and in
+  // every case being talked over should interrupt it the same way.
+  useEffect(() => {
+    if (!hasStarted || !isSpeechRecognitionSupported() || !isSpeaking) return;
+
+    const stopBargeInListener = listenForBargeIn({
+      onSpeechStart: () => {
+        // Ignore triggers in the first stretch of her own utterance -- most
+        // likely her own voice bleeding into the mic, not a real interrupt.
+        if (Date.now() - speakStartTimeRef.current < INTERRUPT_GRACE_MS) return;
+        stopBargeInListener?.();
+        handleUserInterrupt();
+      },
+      onError: (err) => console.warn('Barge-in listener error:', err.message),
+    });
+
+    return () => {
+      stopBargeInListener?.();
+    };
+  }, [hasStarted, isSpeaking, handleUserInterrupt]);
+
   // Scans every face currently in frame (not just the closest one) and
   // queues up a greeting for each newly-confirmed identity. Runs on its own
   // (slower) interval since computing descriptors is heavier than the
@@ -2165,6 +2340,10 @@ useEffect(() => {
   if (!hasStarted) {
     return (
       <div className="app-container">
+        <div className="datetime-corner">
+          <div className="clock-time">{formatTime(clockTime)}</div>
+          <div className="clock-date">{formatDate(clockTime)}</div>
+        </div>
         <div className="start-screen">
           <div className="start-glow" />
           <h1 className="start-title">{ROBOT_NAME}</h1>
@@ -2196,6 +2375,11 @@ useEffect(() => {
 
   return (
     <div className="app-container">
+      <div className="datetime-corner">
+        <div className="clock-time">{formatTime(clockTime)}</div>
+        <div className="clock-date">{formatDate(clockTime)}</div>
+      </div>
+
       <div className={`robot-head ${currentState}`}>
         <RobotFace
           state={currentState}
@@ -2226,7 +2410,7 @@ useEffect(() => {
 {!isSpeaking && assistantMode === 'thinking' && (
   <div className="robot-subtitle">ðŸ’­Â­ Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
 )}
-      {/* Bottom badge showing the currently-greeted person's title/role.ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â­
+      {/* Bottom badge showing the currently-greeted person's title/role.ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­
           Suppressed while she's speaking so it never stacks under the
           speaking-subtitle above (that was the other half of the
           "double subtitle" bug -- two blue blocks rendering at once). */}
@@ -2708,6 +2892,36 @@ body {
   color: #7f8c8d;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.datetime-corner {
+  position: fixed;
+  top: 1.5vmin;
+  right: 1.5vmin;
+  text-align: right;
+  pointer-events: none;
+  z-index: 10;
+  font-family: 'Courier New', 'Consolas', monospace;
+}
+
+.clock-time {
+  font-size: 5vmin;
+  font-weight: 700;
+  color: #00e5ff;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.8), 0 0 18px rgba(0, 229, 255, 0.4);
+  line-height: 1;
+}
+
+.clock-date {
+  margin-top: 0.5vmin;
+  font-size: 4vmin;
+  font-weight: 600;
+  color: #00e5ff;
+  letter-spacing: 0.15em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 4px rgba(0, 229, 255, 0.6);
 }
 
 
