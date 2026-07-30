@@ -110,7 +110,23 @@ export function listenOnce({ onStart, onInterim, onResult, onError, onEnd, timeo
 // just because the engine transcribed the name slightly wrong.
 const DEFAULT_WAKE_WORDS = ['trix', 'tricks', 'trick', 'trish', 'tris'];
 
-export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onError }) {
+// Phrases that force an immediate face-scan + greeting cycle, no matter what
+// Trix is currently doing. Matched the same way wake words are (lowercase
+// substring), so "Can you do an initiate face scan" still triggers it.
+export const DEFAULT_FACE_SCAN_COMMANDS = ['initiate face scan', 'initiate scan', 'face scan'];
+
+// commandPhrases/onCommand ride along on the SAME recognition session as the
+// wake word (rather than a second listener), since only one SpeechRecognition
+// can safely run at a time -- see the "already started" note below. Command
+// phrases are checked first each result, so if a phrase happens to also
+// contain a wake word, the command still wins.
+export function listenForWakeWord({
+  wakeWords = DEFAULT_WAKE_WORDS,
+  commandPhrases = DEFAULT_FACE_SCAN_COMMANDS,
+  onWake,
+  onCommand,
+  onError,
+}) {
   if (!SpeechRecognitionImpl) {
     onError?.(new Error('Speech recognition is not supported in this browser.'));
     return () => {};
@@ -122,8 +138,15 @@ export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onEr
     return normalizedWakeWords.some((w) => lower.includes(w));
   };
 
+  const normalizedCommandPhrases = commandPhrases.map((p) => p.toLowerCase());
+  const matchedCommandPhrase = (text) => {
+    const lower = text.toLowerCase();
+    return normalizedCommandPhrases.find((p) => lower.includes(p)) || null;
+  };
+
   let stopped = false;
-  let woke = false;
+  let woke = false; // false | 'wake' | 'command'
+  let wokeCommandPhrase = null;
   let recognition = null;
 
   const start = () => {
@@ -136,6 +159,16 @@ export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onEr
     recognition.onresult = (event) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
+        const command = matchedCommandPhrase(transcript);
+        if (command) {
+          // Same handoff-race note as below: don't fire onCommand until
+          // onend confirms the mic session is actually torn down.
+          stopped = true;
+          woke = 'command';
+          wokeCommandPhrase = command;
+          recognition.stop();
+          return;
+        }
         if (containsWakeWord(transcript)) {
           // Don't fire onWake yet -- stop() is async and the mic session
           // isn't actually released until onend fires below. Starting a
@@ -143,7 +176,7 @@ export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onEr
           // happens throws "already started" in Chrome, which was silently
           // swallowing every question asked right after the wake word.
           stopped = true;
-          woke = true;
+          woke = 'wake';
           recognition.stop();
           return;
         }
@@ -161,7 +194,14 @@ export function listenForWakeWord({ wakeWords = DEFAULT_WAKE_WORDS, onWake, onEr
     recognition.onend = () => {
       // Browsers silently end long "continuous" sessions after a while --
       // restart automatically unless we've been told to stop.
-      if (woke) {
+      if (woke === 'command') {
+        const phrase = wokeCommandPhrase;
+        woke = false;
+        wokeCommandPhrase = null;
+        onCommand?.(phrase); // mic is now actually free -- safe to start listenOnce()
+        return;
+      }
+      if (woke === 'wake') {
         woke = false;
         onWake?.(); // mic is now actually free -- safe to start listenOnce()
         return;

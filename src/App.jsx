@@ -1,4 +1,9 @@
-import { listenOnce, listenForWakeWord, isSpeechRecognitionSupported } from './lib/voiceInput';
+import {
+  listenOnce,
+  listenForWakeWord,
+  isSpeechRecognitionSupported,
+  DEFAULT_FACE_SCAN_COMMANDS,
+} from './lib/voiceInput';
 import { askAI } from './lib/aiChat';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
@@ -29,7 +34,7 @@ const SLEEP_GRACE_MS = 5000;
 // from the 500ms presence/motion loop since it's a heavier call. Short
 // enough that the confirm-count check below still resolves in well under
 // a second.
-const RECOGNITION_INTERVAL_MS = 350;
+const RECOGNITION_INTERVAL_MS = 220;
 // Identity confirmation now uses a hit/miss SCORE per candidate rather than
 // a strict "must match every single consecutive scan" streak. A scan that
 // doesn't see a given identity subtracts a small penalty instead of wiping
@@ -43,8 +48,8 @@ const RECOGNITION_INTERVAL_MS = 350;
 // confidently telling a known person "Welcome, visitor!" is the costly,
 // embarrassing mistake. So it takes far more accumulated evidence to
 // confirm "visitor" than to confirm a recognized face.
-const RECOGNITION_CONFIRM_HITS_KNOWN = 3;
-const RECOGNITION_CONFIRM_HITS_UNKNOWN = 8;
+const RECOGNITION_CONFIRM_HITS_KNOWN = 2;
+const RECOGNITION_CONFIRM_HITS_UNKNOWN = 5;
 // How much a candidate's score decays on a scan where it isn't seen.
 const RECOGNITION_MISS_PENALTY = 1;
 // A candidate not seen for this many consecutive scans is dropped entirely
@@ -52,8 +57,20 @@ const RECOGNITION_MISS_PENALTY = 1;
 const RECOGNITION_DROP_AFTER_MISSES = 6;
 // After finishing a greeting, how long to keep showing that person's name
 // on screen before handing off to the next person in the queue.
-const GREET_DISPLAY_HOLD_MS = 1200;
+const GREET_DISPLAY_HOLD_MS = 300;
 const UNKNOWN_KEY = 'UNKNOWN_VISITOR';
+// Voice command that forces an immediate face-scan + greeting cycle, no
+// matter what Trix is currently doing (idle, mid-conversation, mid-greeting,
+// asleep). "Initiate Face Scan", "Initiate Scan", "Face Scan".
+const FACE_SCAN_COMMANDS = DEFAULT_FACE_SCAN_COMMANDS;
+// How long to hold the forced "scanning" look if the command is heard but
+// nobody ever steps into frame to be recognized -- otherwise she'd be stuck
+// looking like she's scanning forever.
+const FORCED_SCAN_TIMEOUT_MS = 20000;
+const isFaceScanCommand = (text) => {
+  const lower = text.trim().toLowerCase();
+  return FACE_SCAN_COMMANDS.some((phrase) => lower.includes(phrase));
+};
 // Same identity-key scheme scanFaces uses, shared so the active conversation
 // can check "is the person I'm talking to still the one in frame?" against
 // the exact same keys candidateStreakRef tracks.
@@ -194,6 +211,14 @@ function App() {
   // up-to-date version without needing to be re-created themselves.
   const startListeningRef = useRef(() => {});
   const stopWakeWordRef = useRef(null);
+  // cancel() returned by the in-progress listenOnce() Q&A session (if any),
+  // so the face-scan command can cut it off immediately instead of waiting
+  // for silence/timeout.
+  const activeListenCancelRef = useRef(null);
+  // Lets callbacks defined earlier (startListening, the wake-word handler)
+  // call the force-scan handler defined later without a stale closure.
+  const triggerFaceScanCommandRef = useRef(() => {});
+  const forcedScanTimeoutRef = useRef(null);
 
   // FOR AI CHAT
   const [assistantMode, setAssistantMode] = useState('idle'); // idle | listening | thinking
@@ -227,6 +252,12 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // camera during recognition feels intentional rather than like a silent,
   // awkward stare-down.
   const [isScanning, setIsScanning] = useState(false);
+  // True from the moment "Initiate Face Scan" / "Initiate Scan" / "Face Scan"
+  // is heard until someone is actually confirmed and greeted (or the forced
+  // window times out). Overrides the normal isScanning gating below so the
+  // scan animation starts the instant the command is heard, even if she was
+  // mid-conversation, mid-greeting, or asleep at the time.
+  const [forcedScanActive, setForcedScanActive] = useState(false);
   // Load BlazeFace (presence/wake detection + eye tracking)
   useEffect(() => {
     const loadModel = async () => {
@@ -283,14 +314,28 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
   // falsely read as "scanning" and lit up the eyes/lines mid-sentence.
   useEffect(() => {
     setIsScanning(
-      isFaceDetected &&
-        introFinished &&
-        !isModelLoading &&
-        !isSpeaking &&
-        !activeGreeting &&
-        assistantMode === 'idle'
+      forcedScanActive ||
+        (isFaceDetected &&
+          introFinished &&
+          !isModelLoading &&
+          !isSpeaking &&
+          !activeGreeting &&
+          assistantMode === 'idle')
     );
-  }, [isFaceDetected, introFinished, isModelLoading, isSpeaking, activeGreeting, assistantMode]);
+  }, [forcedScanActive, isFaceDetected, introFinished, isModelLoading, isSpeaking, activeGreeting, assistantMode]);
+
+  // Once a forced scan actually confirms someone and a greeting starts,
+  // hand off to the normal greeting animation instead of continuing to show
+  // the scanning state on top of it.
+  useEffect(() => {
+    if (activeGreeting && forcedScanActive) {
+      setForcedScanActive(false);
+      if (forcedScanTimeoutRef.current) {
+        clearTimeout(forcedScanTimeoutRef.current);
+        forcedScanTimeoutRef.current = null;
+      }
+    }
+  }, [activeGreeting, forcedScanActive]);
 
   // Stay "awake" as long as a face is present, she's speaking, or she's
   // actively mid-conversation (listening/thinking) -- that last one matters
@@ -555,14 +600,22 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
       processGreetQueueRef.current?.();
     };
 
-    listenOnce({
+    activeListenCancelRef.current = listenOnce({
       timeoutMs: 8000,
       // Streams what the person is saying to the screen live, word by
       // word, the same way Gemini/ChatGPT/etc. show your speech as you talk.
       onInterim: (partial) => setLiveTranscript(partial),
       onResult: async (transcript) => {
         handled = true;
+        activeListenCancelRef.current = null;
         setLiveTranscript('');
+        // The face-scan command wins over whatever conversation was in
+        // progress -- even something said mid-question re-triggers a fresh
+        // scan+greeting instead of being sent to the AI as a question.
+        if (isFaceScanCommand(transcript)) {
+          triggerFaceScanCommandRef.current?.();
+          return;
+        }
         setLastQuestion(transcript);
         assistantModeRef.current = 'thinking';
         setAssistantMode('thinking');
@@ -599,6 +652,7 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
       },
       onError: (err) => {
         handled = true;
+        activeListenCancelRef.current = null;
         console.warn('Speech recognition error:', err.message);
         // Silence (or a mic error) is what actually ends the conversation
         // now -- not the camera losing the face. Clearing this and nudging
@@ -607,6 +661,7 @@ const [spokenWordIndex, setSpokenWordIndex] = useState(-1);
         endConversationCleanly();
       },
       onEnd: () => {
+        activeListenCancelRef.current = null;
         if (!handled) endConversationCleanly();
       },
     });
@@ -623,15 +678,22 @@ useEffect(() => {
   startListeningRef.current = startListening;
 }, [startListening]);
 
-  // Background wake-word listener. Only runs when she's awake, idle (not
-// already mid-greeting/conversation), and not talking herself -- otherwise
-// she could hear her own voice through the mic and re-trigger herself.
+  // Background wake-word / face-scan-command listener. Only runs when she's
+  // idle (not already mid-greeting/conversation) and not talking herself --
+  // otherwise she could hear her own voice through the mic and re-trigger
+  // herself, or "already started" would throw when another recognition
+  // session (listenOnce) also wants the mic.
+  //
+  // Deliberately NOT gated on isAwake: the face-scan command needs to work
+  // "regardless of what's currently happening", including while she's fully
+  // asleep with nobody in frame yet -- and since the wake word rides on this
+  // same recognition session (only one can run at a time), it gets the same
+  // always-listening treatment as a side effect.
 useEffect(() => {
   const canListenForWake =
     hasStarted &&
     introFinished &&
     isSpeechRecognitionSupported() &&
-    isAwake &&
     !isSpeaking &&
     assistantMode === 'idle';
 
@@ -641,6 +703,7 @@ useEffect(() => {
     // Matches "Trix", "Hi Trix", "Hello Trix", etc., plus common
     // speech-to-text mishearings of the name (e.g. "tricks").
     wakeWords: ['trix', 'tricks', 'trick', 'trish', 'tris'],
+    commandPhrases: FACE_SCAN_COMMANDS,
     onWake: () => {
       stopWakeWordRef.current = null;
       // announce=false: saying "Hi Trix"/"Hello Trix"/"Trix" is the person
@@ -649,6 +712,10 @@ useEffect(() => {
       const name = activeGreeting?.name ?? null;
       startListeningRef.current(name, false, keyForPerson(name, activeGreeting?.title ?? null));
     },
+    onCommand: () => {
+      stopWakeWordRef.current = null;
+      triggerFaceScanCommandRef.current?.();
+    },
     onError: (err) => console.warn('Wake-word listener error:', err.message),
   });
 
@@ -656,7 +723,7 @@ useEffect(() => {
     stopWakeWordRef.current?.();
     stopWakeWordRef.current = null;
   };
-}, [hasStarted, introFinished, isAwake, isSpeaking, assistantMode, activeGreeting]);
+}, [hasStarted, introFinished, isSpeaking, assistantMode, activeGreeting]);
 
   // Scans every face currently in frame (not just the closest one) and
   // queues up a greeting for each newly-confirmed identity. Runs on its own
@@ -744,6 +811,60 @@ useEffect(() => {
     return () => clearInterval(recognitionIntervalRef.current);
   }, [isFaceDetected, scanFaces]);
 
+  // Fired by "Initiate Face Scan" / "Initiate Scan" / "Face Scan", heard
+  // either by the background listener or mid-conversation (see
+  // isFaceScanCommand above). Interrupts whatever's currently happening --
+  // an in-progress greeting, a question being answered, a stale cooldown --
+  // and forces a fresh recognition + welcome cycle.
+  const triggerFaceScanCommand = useCallback(() => {
+    console.log('Face-scan command heard -- interrupting to run a fresh scan.');
+
+    // Stop anything currently using her voice or the mic.
+    window.speechSynthesis?.cancel();
+    activeListenCancelRef.current?.();
+    activeListenCancelRef.current = null;
+    stopWakeWordRef.current?.();
+    stopWakeWordRef.current = null;
+
+    // Reset conversation/greeting bookkeeping so this isn't blocked by an
+    // "already greeted" cooldown or a queue left over from before the
+    // command interrupted things.
+    assistantModeRef.current = 'idle';
+    setAssistantMode('idle');
+    activePersonKeyRef.current = null;
+    activeGreetRef.current = null;
+    setActiveGreeting(null);
+    greetQueueRef.current = [];
+    queuedKeysRef.current = new Set();
+    candidateStreakRef.current = new Map();
+    greetedPresentRef.current = new Set();
+    lastGreetedAtRef.current = new Map();
+    setLiveTranscript('');
+
+    setIsAwake(true);
+    setForcedScanActive(true);
+    if (forcedScanTimeoutRef.current) clearTimeout(forcedScanTimeoutRef.current);
+    forcedScanTimeoutRef.current = setTimeout(() => {
+      setForcedScanActive(false);
+      forcedScanTimeoutRef.current = null;
+    }, FORCED_SCAN_TIMEOUT_MS);
+
+    // Kick a scan off right away rather than waiting for the next tick --
+    // if someone's already in frame this is what confirms/greets them.
+    scanFaces();
+  }, [scanFaces]);
+
+  useEffect(() => {
+    triggerFaceScanCommandRef.current = triggerFaceScanCommand;
+  }, [triggerFaceScanCommand]);
+
+  // Clear the forced-scan timeout on unmount.
+  useEffect(() => {
+    return () => {
+      if (forcedScanTimeoutRef.current) clearTimeout(forcedScanTimeoutRef.current);
+    };
+  }, []);
+
   const currentState = isModelLoading ? 'loading' : isAwake ? 'happy' : 'sleeping';
 
   const renderMessage = () => {
@@ -766,6 +887,7 @@ useEffect(() => {
       if (isScanning) return 'Scanning...';
       return 'Welcome!';
     }
+    if (forcedScanActive) return 'Scanning...';
     if (isAwake) return 'Still here...';
     return 'Zzz...';
   };
@@ -832,9 +954,9 @@ useEffect(() => {
   </div>
 )}
 {!isSpeaking && assistantMode === 'thinking' && (
-  <div className="robot-subtitle">💭­ Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
+  <div className="robot-subtitle">💭 Thinking... {lastQuestion && `("${lastQuestion}")`}</div>
 )}
-      {/* Bottom badge showing the currently-greeted person's title/role.Ã°Å¸â€™Â­
+      {/* Bottom badge showing the currently-greeted person's title/role.ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â­
           Suppressed while she's speaking so it never stacks under the
           speaking-subtitle above (that was the other half of the
           "double subtitle" bug -- two blue blocks rendering at once). */}

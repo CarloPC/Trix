@@ -29,9 +29,22 @@ text-to-speech, so no lists, no markdown, no headings, just plain natural senten
 If you don't know something specific about this location/company, say so briefly and
 offer to help some other way instead of making facts up.`;
 
+// Quick, deterministic answer for "who made/developed you" questions -- this
+// skips the LLM entirely so credits are always exact, never paraphrased or
+// hallucinated by the model.
+const CREATOR_QUESTION_REGEX =
+  /\b(who\s+(made|built|created|developed|designed|programmed)\s+you|who('?s| is)\s+your\s+(developer|creator|maker|programmer)|who\s+(is|are)\s+(the\s+)?(developer|creator|programmer|program\s*head)s?|(created|developed|built)\s+you)\b/i;
+
+const CREATOR_ANSWER =
+  "I was developed by Carlo CaÃ±ezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head, and Team OJT's";
+
 // conversationHistory: array of { role: 'user' | 'assistant', content: string }
 // personName: optional, lets Trix address a recognized visitor by name.
 export async function askAI(question, conversationHistory = [], personName = null) {
+  if (CREATOR_QUESTION_REGEX.test(question)) {
+    return CREATOR_ANSWER;
+  }
+
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) {
     throw new Error('Missing VITE_GROQ_API_KEY -- add it to your .env file.');
@@ -1209,7 +1222,7 @@ const SLEEP_GRACE_MS = 5000;
 // from the 500ms presence/motion loop since it's a heavier call. Short
 // enough that the confirm-count check below still resolves in well under
 // a second.
-const RECOGNITION_INTERVAL_MS = 350;
+const RECOGNITION_INTERVAL_MS = 220;
 // Identity confirmation now uses a hit/miss SCORE per candidate rather than
 // a strict "must match every single consecutive scan" streak. A scan that
 // doesn't see a given identity subtracts a small penalty instead of wiping
@@ -1223,8 +1236,8 @@ const RECOGNITION_INTERVAL_MS = 350;
 // confidently telling a known person "Welcome, visitor!" is the costly,
 // embarrassing mistake. So it takes far more accumulated evidence to
 // confirm "visitor" than to confirm a recognized face.
-const RECOGNITION_CONFIRM_HITS_KNOWN = 3;
-const RECOGNITION_CONFIRM_HITS_UNKNOWN = 8;
+const RECOGNITION_CONFIRM_HITS_KNOWN = 2;
+const RECOGNITION_CONFIRM_HITS_UNKNOWN = 5;
 // How much a candidate's score decays on a scan where it isn't seen.
 const RECOGNITION_MISS_PENALTY = 1;
 // A candidate not seen for this many consecutive scans is dropped entirely
@@ -1232,7 +1245,7 @@ const RECOGNITION_MISS_PENALTY = 1;
 const RECOGNITION_DROP_AFTER_MISSES = 6;
 // After finishing a greeting, how long to keep showing that person's name
 // on screen before handing off to the next person in the queue.
-const GREET_DISPLAY_HOLD_MS = 1200;
+const GREET_DISPLAY_HOLD_MS = 300;
 const UNKNOWN_KEY = 'UNKNOWN_VISITOR';
 // Same identity-key scheme scanFaces uses, shared so the active conversation
 // can check "is the person I'm talking to still the one in frame?" against

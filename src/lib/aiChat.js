@@ -21,7 +21,7 @@ const CREATOR_QUESTION_REGEX =
   /\b(who\s+(made|built|created|developed|designed|programmed)\s+you|who('?s| is)\s+your\s+(developer|creator|maker|programmer)|who\s+(is|are)\s+(the\s+)?(developer|creator|programmer|program\s*head)s?|(created|developed|built)\s+you)\b/i;
 
 const CREATOR_ANSWER =
-  "I was developed by Carlo Cañezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head.";
+  "I was developed by Carlo Cañezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head, and Team OJT's";
 
 // conversationHistory: array of { role: 'user' | 'assistant', content: string }
 // personName: optional, lets Trix address a recognized visitor by name.
