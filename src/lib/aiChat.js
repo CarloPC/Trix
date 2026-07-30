@@ -14,9 +14,22 @@ text-to-speech, so no lists, no markdown, no headings, just plain natural senten
 If you don't know something specific about this location/company, say so briefly and
 offer to help some other way instead of making facts up.`;
 
+// Quick, deterministic answer for "who made/developed you" questions -- this
+// skips the LLM entirely so credits are always exact, never paraphrased or
+// hallucinated by the model.
+const CREATOR_QUESTION_REGEX =
+  /\b(who\s+(made|built|created|developed|designed|programmed)\s+you|who('?s| is)\s+your\s+(developer|creator|maker|programmer)|who\s+(is|are)\s+(the\s+)?(developer|creator|programmer|program\s*head)s?|(created|developed|built)\s+you)\b/i;
+
+const CREATOR_ANSWER =
+  "I was developed by Carlo Cañezares. Keith Andri Mag-aso provided emotional support, and Procoro Gonzaga is the program head.";
+
 // conversationHistory: array of { role: 'user' | 'assistant', content: string }
 // personName: optional, lets Trix address a recognized visitor by name.
 export async function askAI(question, conversationHistory = [], personName = null) {
+  if (CREATOR_QUESTION_REGEX.test(question)) {
+    return CREATOR_ANSWER;
+  }
+
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) {
     throw new Error('Missing VITE_GROQ_API_KEY -- add it to your .env file.');
