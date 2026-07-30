@@ -66,7 +66,7 @@ const UNKNOWN_KEY = 'UNKNOWN_VISITOR';
 const FACE_SCAN_COMMANDS = DEFAULT_FACE_SCAN_COMMANDS;
 // Voice command that opens the face-enrollment page. "Initiate Face
 // Registration", "Initiate Register".
-const REGISTRATION_COMMANDS = ['initiate face registration', 'initiate register'];
+const REGISTRATION_COMMANDS = ['initiate face registration', 'initiate registration', 'initiate register'];
 const REGISTRATION_PATH = '/admin/register';
 // How long to hold the forced "scanning" look if the command is heard but
 // nobody ever steps into frame to be recognized -- otherwise she'd be stuck
